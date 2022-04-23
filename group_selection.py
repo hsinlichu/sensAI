@@ -89,6 +89,9 @@ def main():
                 if use_cuda:
                     inputs = inputs.cuda()
                 with torch.no_grad():
+                    if args.arch == 'lstm':
+                        inputs = inputs.permute(0, 2, 3, 1)
+                        inputs = inputs.contiguous().view(-1, 32, 32 * 3)
                     features = model(inputs, features_only=True)
                 all_features.append(features)
                 all_targets.append(targets)

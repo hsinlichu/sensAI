@@ -82,6 +82,10 @@ def main():
             #bar.update(1)
             if use_cuda:
                 inputs = inputs.cuda()
+            if args.arch == 'lstm':
+                inputs = inputs.permute(0, 2, 3, 1)
+                inputs = inputs.contiguous().view(-1, 32, 32 * 3)
+
             recorder.record_batch(inputs)
     candidates_by_layer = recorder.generate_pruned_candidates()
 
