@@ -126,3 +126,5 @@ pruned_models/
 pruned_models_retrained/
 prune_candidate_logs/
 data/
+
+*.sw[p|o]
