@@ -127,4 +127,6 @@ pruned_models_retrained/
 prune_candidate_logs/
 data/
 
+# self defined
 *.sw[p|o]
+log/*

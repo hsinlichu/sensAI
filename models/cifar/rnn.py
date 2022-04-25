@@ -3,17 +3,17 @@ from torch import nn
 
 
 class lstm(nn.Module):
-    def __init__(self, hidden_size=128, num_classes=1000):
+    def __init__(self, hidden_size=128, num_layers=1, num_classes=1000):
         super(lstm, self).__init__()
 
-        self.rnn = nn.LSTM(         # if use nn.RNN(), it hardly learns
+        self.rnn = nn.LSTM(          # if use nn.RNN(), it hardly learns
             input_size=96,
-            hidden_size=64,         # rnn hidden unit
-            num_layers=1,           # number of rnn layer
-            batch_first=True,       # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
+            hidden_size=hidden_size, # rnn hidden unit
+            num_layers=num_layers,   # number of rnn layer
+            batch_first=True,        # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
         )
 
-        self.out = nn.Linear(64, num_classes)
+        self.out = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x, features_only=False):
         # x shape (batch, time_step, input_size)
