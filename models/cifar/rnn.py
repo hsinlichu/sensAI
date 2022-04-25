@@ -3,7 +3,7 @@ from torch import nn
 
 
 class lstm(nn.Module):
-    def __init__(self, num_classes=1000):
+    def __init__(self, hidden_size=128, num_classes=1000):
         super(lstm, self).__init__()
 
         self.rnn = nn.LSTM(         # if use nn.RNN(), it hardly learns
