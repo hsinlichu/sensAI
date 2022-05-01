@@ -15,7 +15,9 @@ import time
 
 from even_k_means import kmeans_lloyd
 import models.cifar as cifar_models
-from models.cifar.rnn import lstm
+from models.cifar.rnn import lstm_cell_level
+
+BATCH_SIZE = 64
 
 parser = argparse.ArgumentParser(
     description='PyTorch CIFAR10/100/Imagenet Generate Group Info')
@@ -90,12 +92,12 @@ def main():
             ]))
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=1000,
+            batch_size=BATCH_SIZE,
             num_workers=args.workers,
             pin_memory=False)
         val_loader = torch.utils.data.DataLoader(
             val_dataset,
-            batch_size=1000,
+            batch_size=BATCH_SIZE,
             num_workers=args.workers,
             pin_memory=False)
 
