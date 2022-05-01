@@ -1,4 +1,6 @@
 from torch import nn
+from torch.nn.modules.rnn import LSTMCell
+import torch
 
 class lstm(nn.Module):
     def __init__(self,h_size=64,img_width=32*3, num_classes = 10):
@@ -17,6 +19,7 @@ class lstm(nn.Module):
         # flatten
         x = x.permute(0, 2, 3, 1)
         x = x.contiguous().view(-1, 32, 32 * 3)
+        print(x.shape)
         # x shape (batch, time_step, input_size)
         # r_out shape (batch, time_step, output_size)
         # h_n shape (n_layers, batch, hidden_size)
@@ -29,3 +32,29 @@ class lstm(nn.Module):
             return output
 
         return r_out[:, -1, :]
+
+class lstm_cell_level(nn.Module):
+    def __init__(self, input_size=32*3, hidden_size=64, num_classes=10):
+        super(lstm_cell_level, self).__init__()
+        self.hidden_size = hidden_size
+        self.lstm_cell = LSTMCell(input_size, hidden_size)
+        self.out = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, inputs, features_only=False):
+        # flatten
+        inputs = inputs.permute(0, 2, 3, 1)
+        inputs = inputs.contiguous().view(-1, 32, 32 * 3)
+        inputs = inputs.permute(1,0,2)
+
+        hx = torch.randn(inputs.shape[1], self.hidden_size).cuda() # (batch, hidden_size)
+        cx = torch.randn(inputs.shape[1], self.hidden_size).cuda()
+        for i in range(inputs.shape[0]):
+            hx1, cx1 = self.lstm_cell(inputs[i], (hx, cx))
+            
+            hx,cx = hx1,cx1
+
+        if features_only:
+            return hx
+        
+        # get the final step as output
+        return self.out(hx)
