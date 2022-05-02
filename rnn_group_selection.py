@@ -1,6 +1,6 @@
 import argparse
 import pickle
-
+from datasets.nameLan import TextDataset
 import torch
 from torch import nn
 import torch.backends.cudnn as cudnn
@@ -13,6 +13,7 @@ import subprocess as sp
 import os
 
 from even_k_means import kmeans_lloyd
+from models.text.rnn import RNN
 
 parser = argparse.ArgumentParser(
     description='PyTorch CIFAR10/100/Imagenet Generate Group Info')
@@ -130,6 +131,64 @@ def main():
             process_list[i % num_gpus]  = sp.Popen(exec_cmd, shell=True)
         # Save the grouping class index partition information
         np.save(open("prune_candidate_logs/grouping_config.npy", "wb"), groups)
+    elif args.dataset == 'nameLan':
+        # load dataset
+        dataset = TextDataset('data/nameLan/names/',isTest=False)
+        BATCH_SIZE = 1
+        data_loader = torch.utils.data.DataLoader(dataset,batch_size=BATCH_SIZE,shuffle=False,num_workers=1)
+        print("nameLan loaded!")
+        # create model
+        if args.arch == 'rnn':
+            model = RNN(input_size=dataset.n_letters,output_size=dataset.n_categories).cuda()
+        criterion = nn.CrossEntropyLoss().cuda()
+        optimizer = torch.optim.SGD(model.parameters(), 0.005)
+
+        pretrained_model_path = "pretrained/"
+        save_dir = pretrained_model_path+args.dataset
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_dir = save_dir+'/'
+        if args.resume!="":
+            if os.path.exists(args.resume):
+                checkpoint = torch.load(args.resume)
+                model.load_state_dict(checkpoint['state_dict'])
+                # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        all_features = []
+        all_targets = []
+
+        model.eval()
+        print('\nMake a test run to generate groups. \n Using training set.\n')
+        with tqdm(total=len(data_loader)) as bar:
+            for batch_idx, (targets,inputs) in enumerate(data_loader):
+                bar.update()
+                targets = torch.reshape(targets, (-1,))#.cuda()
+                if use_cuda:
+                    inputs = inputs.cuda()
+                with torch.no_grad():
+                    features = model(inputs, features_only=True)
+                all_features.append(features)
+                all_targets.append(targets)
+
+        all_features = torch.cat(all_features)
+        all_targets = torch.cat(all_targets)
+
+        groups = kmeans_grouping(all_features, all_targets,
+                                args.ngroups, same_group_size=True)
+        print("groups: ", groups)
+        print("\n====================== Grouping Result ========================\n")
+        process_list = [None for _ in range(args.gpu_num)]
+        for i, group in enumerate(groups):
+            if process_list[i % args.gpu_num]:
+                process_list[i % args.gpu_num].wait()
+            print(f"Group #{i}: {' '.join(str(idx) for idx in group)}")
+        #     exec_cmd = 'python3 rnn_get_prune_candidates.py' +\
+        #              ' -a %s' % args.arch + ' -d %s' % args.dataset + ' --resume ./%s' % args.resume + \
+        #              ' --grouped ' + str(group)[1:-1].replace(",", "") + ' --group_number %d' % i + ' --gpu_num %d' % (i % args.gpu_num)
+        #     process_list[i % args.gpu_num]  = sp.Popen(exec_cmd, shell=True)
+        
+        # np.save(open("prune_candidate_logs/grouping_config.npy", "wb"), groups)
+
+
     else:
         raise NotImplementedError(f"There's no support for '{args.dataset}' dataset.")
 
