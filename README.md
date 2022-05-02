@@ -17,6 +17,7 @@ python3 rnn_group_selection.py \
         
 ```
 
+# 文本分类
 
 我目前写了一个文本分类的RNN，放在models/text/rnn.py里。
 目前train下来准确率能上75%，目前还在训练中。
