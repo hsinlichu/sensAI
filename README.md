@@ -16,3 +16,12 @@ python3 rnn_group_selection.py \
         --gpu_num 2
         
 ```
+
+
+我目前写了一个文本分类的RNN，放在models/text/rnn.py里。
+目前train下来准确率能上75%，目前还在训练中。
+要复现的化，首先建一个叫data的folder，然后到这个链接下载压缩包（https://download.pytorch.org/tutorial/data.zip
+
+之后把 data.zip解压到这个data folder下面，并将解压出来的文件夹重命名为nameLan
+
+命令行里输入“python pretrain.py -d nameLan -a rnn”，就可以用这个nameLan数据集train RNN了
