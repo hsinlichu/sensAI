@@ -26,3 +26,14 @@ python3 rnn_group_selection.py \
 之后把 data.zip解压到这个data folder下面，并将解压出来的文件夹重命名为nameLan
 
 命令行里输入“python pretrain.py -d nameLan -a rnn”，就可以用这个nameLan数据集train RNN了
+
+train完之后，输入以下命令可以group selection:
+```
+python3 rnn_group_selection.py \
+        --arch rnn\
+        --resume pretrained/nameLan/checkpoint_rnn.pth \
+        --dataset nameLan \
+        --ngroups 2 \
+        --gpu_num 1
+        ```
+
