@@ -143,8 +143,9 @@ def main():
         # load dataset
         trainset = TextDataset('data/nameLan/names/',isTest=False)
         testset = TextDataset('data/nameLan/names/',isTest=True)
-        train_loader = torch.utils.data.DataLoader(trainset,batch_size=1,shuffle=False,num_workers=2)
-        val_loader = torch.utils.data.DataLoader(testset,batch_size=1,shuffle=False,num_workers=2)
+        BATCH_SIZE = 1
+        train_loader = torch.utils.data.DataLoader(trainset,batch_size=BATCH_SIZE,shuffle=False,num_workers=2)
+        val_loader = torch.utils.data.DataLoader(testset,batch_size=BATCH_SIZE,shuffle=False,num_workers=2)
         print("nameLan loaded!")
         # create model
         if args.arch == 'rnn':
