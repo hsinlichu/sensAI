@@ -1,6 +1,8 @@
 import argparse
 import pickle
 
+from datasets.nameLan import TextDataset
+
 import torch
 from torch import nn
 import torch.backends.cudnn as cudnn
@@ -16,6 +18,9 @@ import time
 from even_k_means import kmeans_lloyd
 import models.cifar as cifar_models
 from models.cifar.rnn import lstm_cell_level
+from models.text.rnn import RNN
+
+
 
 BATCH_SIZE = 64
 
@@ -101,53 +106,18 @@ def main():
             num_workers=args.workers,
             pin_memory=False)
 
-        # if args.arch == "lstm":
-        #     model = lstm(h_size=512,img_width=img_width,num_classes=len(train_dataset.classes))
-        #     if args.resume!="":
-        #         if os.path.exists(args.resume):
-        #             checkpoint = torch.load(args.resume)
-        #             model.load_state_dict(checkpoint['state_dict'])
-
-        #     criterion = nn.CrossEntropyLoss().cuda()
-        #     optimizer = torch.optim.SGD(model.parameters(), 0.02,
-        #                             momentum=args.lr,
-        #                             weight_decay=5e-4)
-        #     model = model.cuda()
-
-        #     for epoch in range(max_epoch):
-        #         # adjust_learning_rate(optimizer, epoch)
-
-        #         # train for one epoch
-        #         train_rnn(train_loader, model, criterion, optimizer, epoch)
-
-        #         # evaluate on validation set
-        #         prec1 = validate_rnn(val_loader, model, criterion)
-
-        #         # remember best prec@1 and save checkpoint
-        #         is_best = prec1 > best_prec1
-        #         if is_best:
-        #             best_prec1 = max(prec1, best_prec1)
-        #             save_checkpoint({
-        #                 'epoch': epoch + 1,
-        #                 'state_dict': model.state_dict(),
-        #                 'best_prec1': best_prec1,
-        #             }, is_best, filename=os.path.join(save_dir, 'checkpoint_{}.pth'.format(args.arch)))
-
-
-        # else:
+        
         model = cifar_models.__dict__[args.arch](num_classes=len(train_dataset.classes))
         if args.resume!="":
             if os.path.exists(args.resume):
                 checkpoint = torch.load(args.resume)
                 model.load_state_dict(checkpoint['state_dict'])
 
-    # model = load_model.load_pretrain_model(
-    #     args.arch, 'cifar', args.resume, len(dataset.classes), use_cuda)
-
         criterion = nn.CrossEntropyLoss().cuda()
         optimizer = torch.optim.SGD(model.parameters(), 0.02,
                                 momentum=args.lr,
                                 weight_decay=5e-4)
+        
         model = model.cuda()
 
 
@@ -169,104 +139,89 @@ def main():
                     'state_dict': model.state_dict(),
                     'best_prec1': best_prec1,
                 }, is_best, filename=os.path.join(save_dir, 'checkpoint_{}.pth'.format(args.arch)))
+    elif args.dataset == 'nameLan':
+        # load dataset
+        trainset = TextDataset('data/nameLan/names/',isTest=False)
+        testset = TextDataset('data/nameLan/names/',isTest=True)
+        train_loader = torch.utils.data.DataLoader(trainset,batch_size=1,shuffle=False,num_workers=2)
+        val_loader = torch.utils.data.DataLoader(testset,batch_size=1,shuffle=False,num_workers=2)
+        print("nameLan loaded!")
+        # create model
+        if args.arch == 'rnn':
+            model = RNN(input_size=trainset.n_letters,output_size=trainset.n_categories).cuda()
+        criterion = nn.CrossEntropyLoss().cuda()
+        optimizer = torch.optim.SGD(model.parameters(), 0.005)
+
+        pretrained_model_path = "pretrained/"
+        save_dir = pretrained_model_path+args.dataset
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_dir = save_dir+'/'
+        if args.resume!="":
+            if os.path.exists(args.resume):
+                checkpoint = torch.load(args.resume)
+                model.load_state_dict(checkpoint['state_dict'])
+                # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        print("Start training ... ")
+        for epoch in range(max_epoch):
+            # adjust_learning_rate(optimizer, epoch)
+
+            # train for one epoch
+            train_rnn(model, train_loader, criterion, optimizer,epoch)
+
+            # evaluate on validation set
+            prec1 = validate_rnn(model, val_loader)
+
+            # remember best prec@1 and save checkpoint
+            is_best = prec1 > best_prec1
+            if is_best:
+                best_prec1 = max(prec1, best_prec1)
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'state_dict': model.state_dict(),
+                    'best_prec1': best_prec1,
+                }, is_best, filename=os.path.join(save_dir, 'checkpoint_{}.pth'.format(args.arch)))
 
 
-def train_rnn(train_loader, model, criterion, optimizer, epoch):
-    """
-        Run one train epoch
-    """
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
+
+
+
+def train_rnn(model, trainloader, criterion, optimizer,epoch):
     top1 = AverageMeter()
-
-    # switch to train mode
+    losses = AverageMeter()
     model.train()
-
-    end = time.time()
-    for i, (input, target) in enumerate(train_loader):
-
-        # measure data loading time
-        data_time.update(time.time() - end)
-
-        input = input.permute(0, 2, 3, 1)
-        input = input.contiguous().view(-1, 32, 32 * 3).cuda()
-        target = target.cuda()
-
-        # compute output
-        output = model(input)
-        loss = criterion(output, target)
-
-        # compute gradient and do SGD step
+    for idx, batch in enumerate(trainloader):
+        category_tensor, line_tensor = batch
+        target = torch.reshape(category_tensor, (-1,)).cuda()
         optimizer.zero_grad()
+        output, hidden = model(line_tensor.cuda())
+        loss = criterion(output, target)
         loss.backward()
         optimizer.step()
-
         output = output.float()
         loss = loss.float()
-        # measure accuracy and record loss
-        prec1 = accuracy(output.data, target)[0]
-        losses.update(loss.item(), input.size(0))
-        top1.update(prec1.item(), input.size(0))
+        prec1 = accuracy(output.data.cpu(), category_tensor)[0]
+        losses.update(loss.item(), category_tensor.size(0))
+        top1.update(prec1.item(), category_tensor.size(0))
 
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
+    print('Epoch: [{0}]\t'
+              'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+              'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
+                  epoch, loss=losses, top1=top1))
 
-        if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                      epoch, i, len(train_loader), batch_time=batch_time,
-                      data_time=data_time, loss=losses, top1=top1))
-
-def validate_rnn(val_loader, model, criterion):
-    """
-    Run evaluation
-    """
-    batch_time = AverageMeter()
+def validate_rnn(model, testloader):
+    model.eval()
     losses = AverageMeter()
     top1 = AverageMeter()
-
-    # switch to evaluate mode
-    model.eval()
-
-    end = time.time()
-    for i, (input, target) in enumerate(val_loader):
-        input = input.permute(0, 2, 3, 1)
-        input = input.contiguous().view(-1, 32, 32 * 3).cuda()
-        target = target.cuda()
-
-        # compute output
+    for idx, batch in enumerate(testloader):
+        category_tensor, line_tensor = batch
         with torch.no_grad():
-            output = model(input)
-            loss = criterion(output, target)
+            output, hidden = model(line_tensor.cuda())
 
         output = output.float()
-        loss = loss.float()
-
-        # measure accuracy and record loss
-        prec1 = accuracy(output.data, target)[0]
-        losses.update(loss.item(), input.size(0))
-        top1.update(prec1.item(), input.size(0))
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        if i % args.print_freq == 0:
-            print('Test: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                      i, len(val_loader), batch_time=batch_time, loss=losses,
-                      top1=top1))
-
-    print(' * Prec@1 {top1.avg:.3f}'
-          .format(top1=top1))
-
+        prec1 = accuracy(output.data.cpu(), category_tensor)[0]
+        top1.update(prec1.item(), category_tensor.size(0))
+    print('test * Prec@1 {top1.avg:.3f}'.format(top1=top1))
     return top1.avg
 
 def train(train_loader, model, criterion, optimizer, epoch):
