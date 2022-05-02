@@ -35,5 +35,7 @@ python3 rnn_group_selection.py \
         --dataset nameLan \
         --ngroups 2 \
         --gpu_num 1
-        ```
+```
+
+
 
