@@ -120,7 +120,11 @@ class DiffRecord:
             apoz_score = self.apoz_hx_by_timestep[time_idx]
             avg_score = self.avg_hx_by_timestep[time_idx]
             if apoz_score>thresholds[time_idx] and avg_score<avg_thresholds[time_idx]:
+<<<<<<< HEAD
                 candidates_by_timestep.append(time_idx+1)
+=======
+                candidates_by_timestep.append(time_idx)
+>>>>>>> 7e1154c719ac76edc969804534cd1932eb83d682
         print("Total pruned candidates: "+ str(len(candidates_by_timestep)))
         return candidates_by_timestep
 
