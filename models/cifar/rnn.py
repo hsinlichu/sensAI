@@ -39,6 +39,7 @@ class lstm_cell_level(nn.Module):
         self.hidden_size = hidden_size
         self.lstm_cell = LSTMCell(input_size, hidden_size)
         self.out = nn.Linear(hidden_size, num_classes)
+        self.prune_timestep = []
 
     def forward(self, inputs, features_only=False):
         # flatten
@@ -46,15 +47,23 @@ class lstm_cell_level(nn.Module):
         inputs = inputs.contiguous().view(-1, 32, 32 * 3)
         inputs = inputs.permute(1,0,2)
 
-        hx = torch.randn(inputs.shape[1], self.hidden_size).cuda() # (batch, hidden_size)
-        cx = torch.randn(inputs.shape[1], self.hidden_size).cuda()
+        hx = torch.randn(inputs.shape[1], self.hidden_size) # (batch, hidden_size)
+        cx = torch.randn(inputs.shape[1], self.hidden_size)
+        if inputs.is_cuda:
+            hx = hx.cuda()
+            cx = cx.cuda()
         for i in range(inputs.shape[0]):
-            hx1, cx1 = self.lstm_cell(inputs[i], (hx, cx))
+            if not i in self.prune_timestep:
+                hx, cx = self.lstm_cell(inputs[i], (hx, cx))
+            # hx1, cx1 = self.lstm_cell(inputs[i], (hx, cx))
             
-            hx,cx = hx1,cx1
+            # hx,cx = hx1,cx1
 
         if features_only:
             return hx
         
         # get the final step as output
         return self.out(hx)
+
+    def setPruneTimeSteps(self, candidates):
+        self.prune_timestep = candidates

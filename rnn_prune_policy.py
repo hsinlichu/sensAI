@@ -95,8 +95,6 @@ class DiffRecord:
     def _hook(self, module, input, output):
         """Apply a hook to LSTMCell layer"""
         if module.__class__.__name__ == 'LSTMCell':
-            # print("output shape of lstmcell hx = "+str(output[0].shape))
-            # print("output shape of lstmcell cx = "+str(output[1].shape))
             self.parse_activation(output)
 
     def showActivation(self):
@@ -110,5 +108,25 @@ class DiffRecord:
         print("avg_cx_by_timestep.size = "+str(len(self.avg_cx_by_timestep)))
         print(self.avg_cx_by_timestep)
         # print("avg_scores_by_layer.size = "+str(len(self.avg_scores_by_layer)))
+
+    def generate_pruned_candidates(self):
+        num_timestep = len(self.apoz_hx_by_timestep)
+        thresholds = [60] * num_timestep
+        avg_thresholds = [0.05] * num_timestep
+        self.showActivation()
+
+        candidates_by_timestep = []
+        for time_idx in range(num_timestep):
+            apoz_score = self.apoz_hx_by_timestep[time_idx]
+            avg_score = self.avg_hx_by_timestep[time_idx]
+            if apoz_score>thresholds[time_idx] and avg_score<avg_thresholds[time_idx]:
+                candidates_by_timestep.append(time_idx+1)
+        print("Total pruned candidates: "+ str(len(candidates_by_timestep)))
+        return candidates_by_timestep
+
+
+
+
+
 
     
