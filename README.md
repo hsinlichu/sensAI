@@ -1,5 +1,4 @@
-# sensAI
-sensAI: ConvNets Decomposition via Class Parallelism for Fast Inference on Live Data
+# LSTM for Cifar10
 
 step 1: pretrain一个lstm_cell_level
 ```
