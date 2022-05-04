@@ -2,6 +2,7 @@ import os
 import torch
 
 import models.cifar as cifar_models
+import models.text as text_models
 
 
 def model_arches(dataset):
@@ -9,6 +10,10 @@ def model_arches(dataset):
         return sorted(name for name in cifar_models.__dict__
                              if name.islower() and not name.startswith("__")
                              and callable(cifar_models.__dict__[name]))
+    elif dataset == 'nameLan':
+        return sorted(name for name in text_models.__dict__
+                             if name.islower() and not name.startswith("__")
+                             and callable(text_models.__dict__[name]))
     else:
         raise NotImplementedError
 
@@ -22,7 +27,7 @@ def load_pretrain_model(arch, dataset, resume_checkpoint, num_classes, use_cuda)
         if use_cuda:
             checkpoint = torch.load(resume_checkpoint)
         else:
-            checkpoint = torch.load(
+            checkpoint = torch.load( 
                 resume_checkpoint, map_location=torch.device('cpu'))
     if dataset.startswith('cifar'):
         model = cifar_models.__dict__[arch](num_classes=num_classes)  

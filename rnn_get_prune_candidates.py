@@ -23,7 +23,7 @@ parser.add_argument('--resume', required=True, default='', type=str, metavar='PA
                     help='path to latest checkpoint (default: none)')
 # Architecture
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet20',
-                    choices=load_model.model_arches('cifar'),
+                    choices=load_model.model_arches('nameLan'),
                     help='model architecture: ' +
                     ' | '.join(load_model.model_arches('cifar')) +
                     ' (default: resnet18)')
@@ -56,6 +56,9 @@ def main():
     elif args.dataset == 'cifar100':
         dataset = cifar.CIFAR100TrainingSetWrapper(args.grouped, False)
         num_classes = 100
+    elif args.dataset == 'nameLan':
+        dataset = TextDataset('data/nameLan/names/',isTest=False)
+        num_classes = dataset.n_categories
     else:
         raise NotImplementedError(
             f"There's no support for '{args.dataset}' dataset.")
@@ -65,9 +68,12 @@ def main():
         batch_size=1000,
         num_workers=args.workers,
         pin_memory=False)
-
-    model = load_model.load_pretrain_model(
-        args.arch, 'cifar', args.resume, num_classes, use_cuda)
+    
+    if 'cifar' in args.dataset:
+        model = load_model.load_pretrain_model(
+            args.arch, 'cifar', args.resume, num_classes, use_cuda)
+    elif 'nameLan' == args.dataset:
+        
 
     if args.arch in ["mobilenetv2", "shufflenetv2"]:
         model = standard(model, args.arch, num_classes)
