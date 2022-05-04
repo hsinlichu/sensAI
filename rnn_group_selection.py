@@ -138,7 +138,7 @@ def main():
         data_loader = torch.utils.data.DataLoader(dataset,batch_size=BATCH_SIZE,shuffle=False,num_workers=1)
         print("nameLan loaded!")
         # create model
-        if args.arch == 'rnn':
+        if args.arch == 'RNN':
             model = RNN(input_size=dataset.n_letters,output_size=dataset.n_categories).cuda()
         criterion = nn.CrossEntropyLoss().cuda()
         optimizer = torch.optim.SGD(model.parameters(), 0.005)
@@ -181,12 +181,12 @@ def main():
             if process_list[i % args.gpu_num]:
                 process_list[i % args.gpu_num].wait()
             print(f"Group #{i}: {' '.join(str(idx) for idx in group)}")
-        #     exec_cmd = 'python3 rnn_get_prune_candidates.py' +\
-        #              ' -a %s' % args.arch + ' -d %s' % args.dataset + ' --resume ./%s' % args.resume + \
-        #              ' --grouped ' + str(group)[1:-1].replace(",", "") + ' --group_number %d' % i + ' --gpu_num %d' % (i % args.gpu_num)
-        #     process_list[i % args.gpu_num]  = sp.Popen(exec_cmd, shell=True)
+            exec_cmd = 'python3 rnn_get_prune_candidates.py' +\
+                     ' -a %s' % args.arch + ' -d %s' % args.dataset + ' --resume ./%s' % args.resume + \
+                     ' --grouped ' + str(group)[1:-1].replace(",", "") + ' --group_number %d' % i + ' --gpu_num %d' % (i % args.gpu_num)
+            process_list[i % args.gpu_num]  = sp.Popen(exec_cmd, shell=True)
         
-        # np.save(open("prune_candidate_logs/grouping_config.npy", "wb"), groups)
+        np.save(open("prune_candidate_logs/grouping_config.npy", "wb"), groups)
 
 
     else:

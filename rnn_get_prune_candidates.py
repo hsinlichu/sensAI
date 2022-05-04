@@ -7,6 +7,7 @@ import torch.backends.cudnn as cudnn
 
 from rnn_prune_policy import DiffRecord
 from datasets import cifar
+from datasets.nameLan import TextDataset
 import load_model
 from tqdm import tqdm
 import os
@@ -23,7 +24,6 @@ parser.add_argument('--resume', required=True, default='', type=str, metavar='PA
                     help='path to latest checkpoint (default: none)')
 # Architecture
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet20',
-                    choices=load_model.model_arches('nameLan'),
                     help='model architecture: ' +
                     ' | '.join(load_model.model_arches('cifar')) +
                     ' (default: resnet18)')
@@ -65,12 +65,12 @@ def main():
 
     pruning_loader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=1000,
+        batch_size=1 if args.dataset == 'nameLan' else 1000,
         num_workers=args.workers,
         pin_memory=False)
     
     model = load_model.load_pretrain_model(
-        args.arch, args.dataset, args.resume, num_classes, use_cuda)        
+        args.arch, args.dataset, args.resume, num_classes, use_cuda, dataset.n_letters if args.dataset == 'nameLan' else None)        
 
     if args.arch in ["mobilenetv2", "shufflenetv2"]:
         model = standard(model, args.arch, num_classes)
@@ -81,8 +81,9 @@ def main():
     with DiffRecord(model, args.arch) as recorder:
         # collect pruning data
         #bar = tqdm(total=len(pruning_loader))
-        for batch_idx, (inputs, _) in enumerate(pruning_loader):
+        for batch_idx, (inputs1, inputs2) in enumerate(pruning_loader):
             #bar.update(1)
+            inputs = inputs2 if args.dataset == 'nameLan' else inputs1 
             if use_cuda:
                 inputs = inputs.cuda()
                 

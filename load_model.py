@@ -19,7 +19,7 @@ def model_arches(dataset):
 
 
 
-def load_pretrain_model(arch, dataset, resume_checkpoint, num_classes, use_cuda):
+def load_pretrain_model(arch, dataset, resume_checkpoint, num_classes, use_cuda, input_size=None):
     #assert os.path.isfile(resume_checkpoint), 'Error: no checkpoint found!'
     if(os.path.isfile(resume_checkpoint)):
         print('==> Resuming from checkpoint..')
@@ -32,7 +32,7 @@ def load_pretrain_model(arch, dataset, resume_checkpoint, num_classes, use_cuda)
     if dataset.startswith('cifar'):
         model = cifar_models.__dict__[arch](num_classes=num_classes)  
     elif dataset == 'nameLan':
-        model = text_models.__dict__[arch](num_classes=num_classes)  
+        model = text_models.__dict__[arch](input_size, num_classes)  
     else:
         raise NotImplementedError(f"Unsupported dataset: {dataset}.")
     print(model)
