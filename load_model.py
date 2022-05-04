@@ -31,6 +31,8 @@ def load_pretrain_model(arch, dataset, resume_checkpoint, num_classes, use_cuda)
                 resume_checkpoint, map_location=torch.device('cpu'))
     if dataset.startswith('cifar'):
         model = cifar_models.__dict__[arch](num_classes=num_classes)  
+    elif dataset == 'nameLan':
+        model = text_models.__dict__[arch](num_classes=num_classes)  
     else:
         raise NotImplementedError(f"Unsupported dataset: {dataset}.")
     print(model)

@@ -94,8 +94,12 @@ class DiffRecord:
 
     def _hook(self, module, input, output):
         """Apply a hook to LSTMCell layer"""
-        if module.__class__.__name__ == 'LSTMCell':
-            self.parse_activation(output)
+        if self.arch == 'lstm_cell_level':
+            if module.__class__.__name__ == 'LSTMCell':
+                self.parse_activation(output)
+        elif self.arch == 'RNN':
+            if module.__class__.__name__ == 'Linear':
+                self.parse_activation(output)
 
     def showActivation(self):
         print(">>>>>>>>>>>Activation<<<<<<<<<<<<")

@@ -69,11 +69,8 @@ def main():
         num_workers=args.workers,
         pin_memory=False)
     
-    if 'cifar' in args.dataset:
-        model = load_model.load_pretrain_model(
-            args.arch, 'cifar', args.resume, num_classes, use_cuda)
-    elif 'nameLan' == args.dataset:
-        
+    model = load_model.load_pretrain_model(
+        args.arch, args.dataset, args.resume, num_classes, use_cuda)        
 
     if args.arch in ["mobilenetv2", "shufflenetv2"]:
         model = standard(model, args.arch, num_classes)
