@@ -12,7 +12,7 @@ import argparse
 from tqdm import tqdm
 import torch
 from torch import nn
-import data.FordA.dataset as dataset
+from datasets.FordA import FordADataset
 import matplotlib.pyplot as plt
 import models.cifar.rnn as rnn
 
@@ -46,17 +46,17 @@ logger.addHandler(consoleHandler)
 torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
-EPOCH = 100             # train the training data n times, to save time, we just train 1 epoch
+EPOCH = 500             # train the training data n times, to save time, we just train 1 epoch
 BATCH_SIZE = 64
 LR = 5e-2                # learning rate
 
 logger.info("Epoch: {} | batch size: {} | LR: {}".format(EPOCH, BATCH_SIZE, LR))
 
-trainset = dataset.FordADataset(path='./data/FordA/FordA_TRAIN.tsv', train=True)
+trainset = FordADataset(path='./data/FordA/FordA_TRAIN.tsv', train=True)
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
         shuffle=True, num_workers=args.workers)
 
-testset = dataset.FordADataset(path='./data/FordA/FordA_TEST.tsv', train=False, mean=trainset.mean, std=trainset.std)
+testset = FordADataset(path='./data/FordA/FordA_TEST.tsv', train=False, mean=trainset.mean, std=trainset.std)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
         shuffle=False, num_workers=args.workers)
 
