@@ -12,8 +12,7 @@ import argparse
 from tqdm import tqdm
 import torch
 from torch import nn
-import torchvision.datasets as dsets
-import torchvision.transforms as transforms
+import data.FordA.dataset as dataset
 import matplotlib.pyplot as plt
 import models.cifar.rnn as rnn
 
@@ -22,7 +21,7 @@ from datetime import datetime
 logger = logging.getLogger()
 
 parser = argparse.ArgumentParser(
-    description='PyTorch CIFAR10/100/Imagenet Generate Group Info')
+    description='FordA Generate Group Info')
 
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
@@ -44,37 +43,26 @@ consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
 logger.addHandler(consoleHandler)
 
-
-
 torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
-EPOCH = 100               # train the training data n times, to save time, we just train 1 epoch
+EPOCH = 100             # train the training data n times, to save time, we just train 1 epoch
 BATCH_SIZE = 64
-TIME_STEP = 28          # rnn time step / image height
-INPUT_SIZE = 28         # rnn input size / image width
-LR = 0.01               # learning rate
+LR = 5e-2                # learning rate
 
-logger.info("Epoch: {} | batch size: {} | Time_step: {} | Input_size: {} | LR: {}".format(EPOCH, BATCH_SIZE, TIME_STEP, INPUT_SIZE, LR))
+logger.info("Epoch: {} | batch size: {} | LR: {}".format(EPOCH, BATCH_SIZE, LR))
 
-transform=transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(
-        (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-
-trainset = dsets.CIFAR10(root='./data', train=True,
-        download=True, transform=transform)
+trainset = dataset.FordADataset(path='./data/FordA/FordA_TRAIN.tsv', train=True)
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
         shuffle=True, num_workers=args.workers)
 
-testset = dsets.CIFAR10(root='./data', train=False,
-        download=True, transform=transform)
+testset = dataset.FordADataset(path='./data/FordA/FordA_TEST.tsv', train=False, mean=trainset.mean, std=trainset.std)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
         shuffle=False, num_workers=args.workers)
 
-model = rnn.lstm(num_classes=10)
+model = rnn.lstm(num_classes=2)
 logger.info(model)
+model = model.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)   # optimize all cnn parameters
 loss_func = nn.CrossEntropyLoss()                       # the target label is not one-hotted
@@ -89,12 +77,11 @@ for epoch in range(EPOCH):
     train_correct = 0
     train_loss = 0
     for step, (inputs, labels) in trange:
-        inputs = inputs.permute(0, 2, 3, 1)
-        inputs = inputs.contiguous().view(-1, 32, 32 * 3)
-
+        inputs = inputs.cuda()
+        labels = labels.cuda()
+        optimizer.zero_grad()                           # clear gradients for this training step
         outputs = model(inputs)                         # rnn output
         loss = loss_func(outputs, labels)               # cross entropy loss
-        optimizer.zero_grad()                           # clear gradients for this training step
         loss.backward()                                 # backpropagation, compute gradients
         optimizer.step()                                # apply gradients
 
@@ -113,8 +100,8 @@ for epoch in range(EPOCH):
     with torch.no_grad():
         trange = tqdm(enumerate(test_loader), total=len(test_loader), desc="Train|Epoch {}".format(epoch))
         for step, (inputs, labels) in trange:
-            inputs = inputs.permute(0, 2, 3, 1)
-            inputs = inputs.contiguous().view(-1, 32, 32 * 3)
+            inputs = inputs.cuda()
+            labels = labels.cuda()
 
             outputs = model(inputs)                               # rnn output
             loss = loss_func(outputs, labels)                   # cross entropy loss
@@ -130,7 +117,11 @@ for epoch in range(EPOCH):
     if epoch_test_loss < best_test_loss:
         best_test_loss = epoch_test_loss
         filename = resultDirPath / "best_checkpoint.pth.tar"
-        torch.save(model.state_dict(), filename)
+        saved_data = {
+                "epoch": epoch,
+                "state_dict": model.state_dict(),
+                }
+        torch.save(saved_data, filename)
         logger.info("Current Best(loss: {:.4f}, acc: {:.2f}) Save to: {}".format(epoch_test_loss, epoch_test_acc, filename))
 
     logger.info('Epoch: {}'.format(epoch))

@@ -99,6 +99,7 @@ class ActivationRecord:
             else:
                 apoz_scores = torch.Tensor(apoz_scores)
                 avg_scores = torch.Tensor(avg_scores)
+                print(avg_scores)
                 avg_candidates = [idx for idx, score in enumerate(
                     avg_scores) if score >= avg_thresholds[layer_idx]]
                 candidates = [x[0] for x in apoz_scores.gt(
