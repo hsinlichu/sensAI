@@ -19,6 +19,7 @@ from even_k_means import kmeans_lloyd
 import models.cifar as cifar_models
 from models.cifar.rnn import lstm_cell_level
 from models.text.rnn import RNN
+from tqdm import tqdm
 
 
 BATCH_SIZE = 64
@@ -128,7 +129,7 @@ def main():
             train(train_loader, model, criterion, optimizer, epoch)
 
             # evaluate on validation set
-            prec1 = validate(val_loader, model, criterion)
+            prec1 = validate(val_loader, model, criterion, epoch)
 
             # remember best prec@1 and save checkpoint
             is_best = prec1 > best_prec1
@@ -191,7 +192,8 @@ def train_rnn(model, trainloader, criterion, optimizer,epoch):
     top1 = AverageMeter()
     losses = AverageMeter()
     model.train()
-    for idx, batch in enumerate(trainloader):
+    trange = tqdm(enumerate(trainloader), total=len(trainloader), desc="Train|Epoch {}".format(epoch))
+    for idx, batch in trange:
         category_tensor, line_tensor = batch
         target = torch.reshape(category_tensor, (-1,)).cuda()
         optimizer.zero_grad()
@@ -204,25 +206,32 @@ def train_rnn(model, trainloader, criterion, optimizer,epoch):
         prec1 = accuracy(output.data.cpu(), category_tensor)[0]
         losses.update(loss.item(), category_tensor.size(0))
         top1.update(prec1.item(), category_tensor.size(0))
+        trange.set_postfix(top1=top1.avg, losses=losses.avg)
 
+    '''
     print('Epoch: [{0}]\t'
               'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
               'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                   epoch, loss=losses, top1=top1))
+    '''
 
 def validate_rnn(model, testloader):
     model.eval()
     losses = AverageMeter()
     top1 = AverageMeter()
+    trange = tqdm(enumerate(testloader), total=len(testloader), desc="Valid|Epoch {}".format(epoch))
     for idx, batch in enumerate(testloader):
         category_tensor, line_tensor = batch
+        target = torch.reshape(category_tensor, (-1,)).cuda()
         with torch.no_grad():
             output, hidden = model(line_tensor.cuda())
+        loss = criterion(output, target)
+        losses.update(loss.item(), category_tensor.size(0))
 
         output = output.float()
         prec1 = accuracy(output.data.cpu(), category_tensor)[0]
         top1.update(prec1.item(), category_tensor.size(0))
-    print('test * Prec@1 {top1.avg:.3f}'.format(top1=top1))
+        trange.set_postfix(top1=top1.avg, losses=losses.avg)
     return top1.avg
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -238,7 +247,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    trange = tqdm(enumerate(train_loader), total=len(train_loader), desc="Train|Epoch {}".format(epoch))
+    for i, (input, target) in trange:
 
         # measure data loading time
         data_time.update(time.time() - end)
@@ -266,6 +276,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         batch_time.update(time.time() - end)
         end = time.time()
 
+        trange.set_postfix(losses=losses.avg, top1=top1.avg)
+        '''
         if i % args.print_freq == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -274,9 +286,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                       epoch, i, len(train_loader), batch_time=batch_time,
                       data_time=data_time, loss=losses, top1=top1))
+        '''
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, epoch):
     """
     Run evaluation
     """
@@ -288,7 +301,8 @@ def validate(val_loader, model, criterion):
     model.eval()
 
     end = time.time()
-    for i, (input, target) in enumerate(val_loader):
+    trange = tqdm(enumerate(val_loader), total=len(val_loader), desc="Valid|Epoch {}".format(epoch))
+    for i, (input, target) in trange:
         input = input.cuda()
         target = target.cuda()
 
@@ -309,6 +323,7 @@ def validate(val_loader, model, criterion):
         batch_time.update(time.time() - end)
         end = time.time()
 
+        '''
         if i % args.print_freq == 0:
             print('Test: [{0}/{1}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -316,9 +331,10 @@ def validate(val_loader, model, criterion):
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                       i, len(val_loader), batch_time=batch_time, loss=losses,
                       top1=top1))
+        '''
+        trange.set_postfix(losses=losses.avg, top1=top1.avg)
 
-    print(' * Prec@1 {top1.avg:.3f}'
-          .format(top1=top1))
+    #print(' * Prec@1 {top1.avg:.3f}'.format(top1=top1))
 
     return top1.avg
 
