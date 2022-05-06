@@ -21,7 +21,6 @@ from models.cifar.rnn import lstm_cell_level
 from models.text.rnn import RNN
 
 
-
 BATCH_SIZE = 64
 
 parser = argparse.ArgumentParser(
@@ -60,6 +59,7 @@ max_epoch = 500
 
 
 def main():
+    global BATCH_SIZE
     print('==> Preparing dataset %s' % args.dataset)
     best_prec1 = 0
     img_width = 28
