@@ -5,6 +5,7 @@ import time
 import random
 import warnings
 
+import load_model
 from tqdm import tqdm
 import torch
 from torch import nn
@@ -33,6 +34,8 @@ parser = argparse.ArgumentParser(description='PyTorch CIFAR10/100/ImageNet Testi
 # Checkpoints
 parser.add_argument('--retrained_dir', type=str, metavar='PATH',
                     help='path to the directory of pruned models (default: none)')
+parser.add_argument('--resume', default='', type=str, metavar='PATH',
+                    help='path to latest checkpoint (default: none)')
 # Datasets
 parser.add_argument('-d', '--dataset', required=True, type=str)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
@@ -119,22 +122,7 @@ def main():
     else:
         raise NotImplementedError
 
-    # testloader = data.DataLoader(
-    #     dataset_loader(
-    #         root='data',
-    #         download=False,
-    #         train=False,
-    #         transform=transforms.Compose([
-    #             transforms.ToTensor(),
-    #             transforms.Normalize(
-    #                 (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    #         ])),
-    #     batch_size = args.test_batch,
-    #     shuffle = True,
-    #     num_workers = args.workers)
-
-    testloader = data.DataLoader(
-        dataset_loader(
+    dataset = dataset_loader(
             root='data',
             download=False,
             train=True,
@@ -142,17 +130,30 @@ def main():
                 transforms.ToTensor(),
                 transforms.Normalize(
                     (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ])),
+            ]))
+    # dataset = dataset_loader(
+    #         root='data',
+    #         download=False,
+    #         train=False,
+    #         transform=transforms.Compose([
+    #             transforms.ToTensor(),
+    #             transforms.Normalize(
+    #                 (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    #         ]))
+    testloader = data.DataLoader(
+        dataset,
         batch_size = args.test_batch,
         shuffle = True,
         num_workers = args.workers)
 
     cudnn.benchmark = True
     criterion = nn.CrossEntropyLoss()
-    model = load_pruned_models(args.retrained_dir+'/'+args.arch+'/')
+    # model = load_pruned_models(args.retrained_dir+'/'+args.arch+'/')
+    model = load_model.load_pretrain_model(
+            args.arch, 'cifar', args.resume, len(dataset.classes), use_cuda)
 
-    if len(model.group_info) == 10 and args.dataset == 'cifar10':
-        args.bce = True
+    # if len(model.group_info) == 10 and args.dataset == 'cifar10':
+    #     args.bce = True
 
     test_acc = test_list(testloader, model, criterion, use_cuda)
 
@@ -255,28 +256,28 @@ def test_list(testloader, model, criterion, use_cuda):
         print("Warning: The original confusion matrix is too big to fit into the screen. "
               "Skip printing the matrix.")
 
-    if all([len(group) > 1 for group in model.group_info]):
-        print("\n===== Inter-group Confusion Matrix ===========================\n")
-        print(f"Group info: {[group for group in model.group_info]}")
-        n_groups = len(model.group_info)
-        group_confusion_matrix = np.zeros((n_groups, n_groups))
-        for i in range(n_groups):
-            for j in range(n_groups):
-                cols = model.group_info[i]
-                rows = model.group_info[j]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[0]]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[1]]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[0]]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[1]]
-        group_confusion_matrix /= group_confusion_matrix.sum(axis=-1)[:, np.newaxis]
-        print(group_confusion_matrix)
+    # if all([len(group) > 1 for group in model.group_info]):
+    #     print("\n===== Inter-group Confusion Matrix ===========================\n")
+    #     print(f"Group info: {[group for group in model.group_info]}")
+    #     n_groups = len(model.group_info)
+    #     group_confusion_matrix = np.zeros((n_groups, n_groups))
+    #     for i in range(n_groups):
+    #         for j in range(n_groups):
+    #             cols = model.group_info[i]
+    #             rows = model.group_info[j]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[0]]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[1]]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[0]]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[1]]
+    #     group_confusion_matrix /= group_confusion_matrix.sum(axis=-1)[:, np.newaxis]
+    #     print(group_confusion_matrix)
 
-    print("\n===== In-group Confusion Matrix ==============================\n")
-    for group in model.group_info:
-        print(f"group {group}")
-        inter_group_matrix = confusion_matrix[group, :][:, group]
-        inter_group_matrix /= inter_group_matrix.sum(axis=-1)[:, np.newaxis]
-        print(inter_group_matrix)
+    # print("\n===== In-group Confusion Matrix ==============================\n")
+    # for group in model.group_info:
+    #     print(f"group {group}")
+    #     inter_group_matrix = confusion_matrix[group, :][:, group]
+    #     inter_group_matrix /= inter_group_matrix.sum(axis=-1)[:, np.newaxis]
+    #     print(inter_group_matrix)
     return (losses.avg, top1.avg)
 
 class GroupedModel(nn.Module):
@@ -335,7 +336,7 @@ def load_pruned_models(model_dir):
         class_indices = groups[group_id]
         group_info.append(class_indices.tolist()[0])
     model = GroupedModel(model_list, group_info)
-    # model.print_statistics()
+    model.print_statistics()
     return model
 
 

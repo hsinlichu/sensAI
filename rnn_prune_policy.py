@@ -111,16 +111,21 @@ class DiffRecord:
 
     def generate_pruned_candidates(self):
         num_timestep = len(self.apoz_hx_by_timestep)
-        thresholds = [60] * num_timestep
-        avg_thresholds = [0.05] * num_timestep
+        apoz_thresholds_hx = [53] * num_timestep
+        avg_thresholds_hx = [0.08] * num_timestep
+        apoz_thresholds_cx = [25] * num_timestep
+        avg_thresholds_cx = [0.18] * num_timestep
         self.showActivation()
 
         candidates_by_timestep = []
         for time_idx in range(num_timestep):
-            apoz_score = self.apoz_hx_by_timestep[time_idx]
-            avg_score = self.avg_hx_by_timestep[time_idx]
-            if apoz_score>thresholds[time_idx] and avg_score<avg_thresholds[time_idx]:
-                candidates_by_timestep.append(time_idx+1)
+            apoz_score_hx = self.apoz_hx_by_timestep[time_idx]
+            avg_score_hx = self.avg_hx_by_timestep[time_idx]
+            apoz_score_cx = self.apoz_cx_by_timestep[time_idx]
+            avg_score_cx = self.avg_cx_by_timestep[time_idx]
+            if apoz_score_hx>apoz_thresholds_hx[time_idx] and avg_score_hx<avg_thresholds_hx[time_idx]:
+            	if apoz_score_cx>apoz_thresholds_cx[time_idx] and avg_score_cx<avg_thresholds_cx[time_idx]:
+                	candidates_by_timestep.append(time_idx+1)
         print("Total pruned candidates: "+ str(len(candidates_by_timestep)))
         return candidates_by_timestep
 
