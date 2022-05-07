@@ -100,21 +100,21 @@ class DiffRecord:
     def showActivation(self):
         print(">>>>>>>>>>>Activation<<<<<<<<<<<<")
         print("apoz_hx_by_timestep.size = "+str(len(self.apoz_hx_by_timestep)))
-        print(self.apoz_hx_by_timestep)
+        print(np.mean(self.apoz_hx_by_timestep))
         print("apoz_cx_by_timestep.size = "+str(len(self.apoz_cx_by_timestep)))
-        print(self.apoz_cx_by_timestep)
+        print(np.mean(self.apoz_cx_by_timestep))
         print("avg_hx_by_timestep.size = "+str(len(self.avg_hx_by_timestep)))
-        print(self.avg_hx_by_timestep)
+        print(np.mean(self.avg_hx_by_timestep))
         print("avg_cx_by_timestep.size = "+str(len(self.avg_cx_by_timestep)))
-        print(self.avg_cx_by_timestep)
+        print(np.mean(self.avg_cx_by_timestep))
         # print("avg_scores_by_layer.size = "+str(len(self.avg_scores_by_layer)))
 
     def generate_pruned_candidates(self):
         num_timestep = len(self.apoz_hx_by_timestep)
-        apoz_thresholds_hx = [53] * num_timestep
-        avg_thresholds_hx = [0.08] * num_timestep
-        apoz_thresholds_cx = [25] * num_timestep
-        avg_thresholds_cx = [0.18] * num_timestep
+        apoz_thresholds_hx = [np.mean(self.apoz_hx_by_timestep)] * num_timestep
+        avg_thresholds_hx = [np.mean(self.avg_hx_by_timestep)] * num_timestep
+        apoz_thresholds_cx = [np.mean(self.apoz_cx_by_timestep)] * num_timestep
+        avg_thresholds_cx = [np.mean(self.avg_cx_by_timestep)] * num_timestep
         self.showActivation()
 
         candidates_by_timestep = []

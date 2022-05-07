@@ -58,8 +58,7 @@ class lstm_cell_level(nn.Module):
         else:
             inputs = inputs.index_select(0, self.valid_timestep)
         for i in range(inputs.shape[0]):
-            if not i in self.prune_timestep:
-                hx, cx = self.lstm_cell(inputs[i], (hx, cx))
+            hx, cx = self.lstm_cell(inputs[i], (hx, cx))
             # hx1, cx1 = self.lstm_cell(inputs[i], (hx, cx))
             
             # hx,cx = hx1,cx1
