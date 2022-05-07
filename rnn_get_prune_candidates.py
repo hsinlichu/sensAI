@@ -7,6 +7,7 @@ import torch.backends.cudnn as cudnn
 
 from rnn_prune_policy import DiffRecord
 from datasets import cifar
+from datasets import nameLan
 from datasets.nameLan import TextDataset
 import load_model
 from tqdm import tqdm
@@ -57,7 +58,7 @@ def main():
         dataset = cifar.CIFAR100TrainingSetWrapper(args.grouped, False)
         num_classes = 100
     elif args.dataset == 'nameLan':
-        dataset = TextDataset('data/nameLan/names/',isTest=False)
+        dataset = nameLan.nameLanTrainingSetWrapper(args.grouped)
         num_classes = dataset.n_categories
     else:
         raise NotImplementedError(

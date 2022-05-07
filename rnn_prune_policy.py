@@ -99,14 +99,20 @@ class DiffRecord:
 
     def __exit__(self, exception_type, exception_value, traceback):
         print(self.num_batch_by_timestep)
-        for time in range(len(self.apoz_hx_by_timestep)):
-            self.apoz_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
-            self.avg_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+        if self.arch == 'RNN':
+            for time in range(len(self.apoz_hx_by_timestep)):
+                self.apoz_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+                self.avg_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
 
-            if self.arch == 'lstm_cell_level':
-                self.apoz_cx_by_timestep[time] /= self.num_batch_by_timestep[time]
-                self.avg_cx_by_timestep[time] /= self.num_batch_by_timestep[time]
-
+        elif self.arch == 'lstm_cell_level':
+            for score in self.apoz_hx_by_timestep:
+                score /= self.num_batches
+            for score in self.apoz_cx_by_timestep:
+                score /= self.num_batches
+            for score in self.avg_hx_by_timestep:
+                score /= self.num_batches
+            for score in self.avg_cx_by_timestep:
+                score /= self.num_batches
 
     def record_batch(self, *args, **kwargs):
         # reset layer index

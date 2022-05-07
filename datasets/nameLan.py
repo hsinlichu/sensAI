@@ -6,6 +6,9 @@ from torch.utils import data
 from torch.autograd import Variable
 import torch.nn as nn
 
+from datasets import utils
+from typing import List, Tuple
+
 import glob
 import unicodedata
 import string
@@ -13,6 +16,16 @@ import random
 
 def randomChoice(l):
     return l[random.randint(0, len(l) - 1)]
+
+class nameLanTrainingSetWrapper(utils.DataSetWrapper):
+    def __init__(self, class_group: Tuple[int], negative_samples=False):
+        dataset = TextDataset('data/nameLan/names/',isTest=False)
+        super().__init__(dataset, class_group, negative_samples, 'nameLan')
+
+class nameLanTestingSetWrapper(utils.DataSetWrapper):
+    def __init__(self, class_group: Tuple[int], negative_samples=False):
+        dataset = TextDataset('data/nameLan/names/',isTest=True)
+        super().__init__(dataset, class_group, negative_samples, 'nameLan')
 
 class TextDataset(data.Dataset):
 	def __init__(self,data_dir,isTest):
