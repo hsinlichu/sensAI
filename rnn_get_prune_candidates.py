@@ -59,7 +59,6 @@ def main():
         num_classes = 100
     elif args.dataset == 'nameLan':
         dataset = nameLan.nameLanTrainingSetWrapper(args.grouped)
-        num_classes = dataset.n_categories
     else:
         raise NotImplementedError(
             f"There's no support for '{args.dataset}' dataset.")
@@ -70,8 +69,11 @@ def main():
         num_workers=args.workers,
         pin_memory=False)
     
+    if args.dataset == 'nameLan':
+        num_classes = dataset.dataset.n_categories
+    
     model = load_model.load_pretrain_model(
-        args.arch, args.dataset, args.resume, num_classes, use_cuda, dataset.n_letters if args.dataset == 'nameLan' else None)        
+        args.arch, args.dataset, args.resume, num_classes, use_cuda, dataset.dataset.n_letters if args.dataset == 'nameLan' else None)        
 
     if args.arch in ["mobilenetv2", "shufflenetv2"]:
         model = standard(model, args.arch, num_classes)
@@ -82,9 +84,8 @@ def main():
     with DiffRecord(model, args.arch) as recorder:
         # collect pruning data
         #bar = tqdm(total=len(pruning_loader))
-        for batch_idx, (inputs1, inputs2) in enumerate(pruning_loader):
+        for batch_idx, (inputs, _) in enumerate(pruning_loader):
             #bar.update(1)
-            inputs = inputs2 if args.dataset == 'nameLan' else inputs1 
             if use_cuda:
                 inputs = inputs.cuda()
                 

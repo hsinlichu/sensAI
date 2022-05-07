@@ -44,6 +44,8 @@ class TextDataset(data.Dataset):
 		self.splitTrainVal()
 		self.shuffle_set()
 
+		self.targets = [self.all_categories.index(d['category']) for d in self.line_category_set]
+
 	def load_files(self):
 		for filename in self.findFiles(self.data_dir+'*.txt'):
 		    category = filename.split('/')[-1].split('.')[0]
@@ -122,4 +124,4 @@ class TextDataset(data.Dataset):
 		category = line_cat["category"]
 		category_tensor = Variable(torch.LongTensor([self.all_categories.index(category)]))
 		line_tensor = Variable(self.lineToTensor(line))
-		return category_tensor, line_tensor
+		return line_tensor, category_tensor

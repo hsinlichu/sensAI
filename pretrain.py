@@ -192,7 +192,7 @@ def train_rnn(model, trainloader, criterion, optimizer,epoch):
     losses = AverageMeter()
     model.train()
     for idx, batch in enumerate(trainloader):
-        category_tensor, line_tensor = batch
+        line_tensor, category_tensor = batch
         target = torch.reshape(category_tensor, (-1,)).cuda()
         optimizer.zero_grad()
         output, hidden = model(line_tensor.cuda())

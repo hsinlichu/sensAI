@@ -12,7 +12,6 @@ class DataSetWrapper(object):
         self.class_group = class_group
         self.negative_samples = negative_samples
         self.targets = np.asarray(self.dataset.targets)
-        print(self.targets)
         # This is the bool mask for all classes in the given group.
         positive_mask = np.zeros_like(self.targets, dtype=bool)
         for class_index in class_group:
@@ -39,10 +38,7 @@ class DataSetWrapper(object):
 
     def __getitem__(self, i):
         index = self.mapping[i]
-        if self.name == 'cifar':
-            data, label = self.dataset[index]
-        elif self.name == 'nameLan':
-            label, data = self.dataset[index]
+        data, label = self.dataset[index]
         if label in self.class_group:
             label = list(self.class_group).index(label) + 1
         else:

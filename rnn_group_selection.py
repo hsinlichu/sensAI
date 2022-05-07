@@ -159,7 +159,7 @@ def main():
         model.eval()
         print('\nMake a test run to generate groups. \n Using training set.\n')
         with tqdm(total=len(data_loader)) as bar:
-            for batch_idx, (targets,inputs) in enumerate(data_loader):
+            for batch_idx, (inputs, targets) in enumerate(data_loader):
                 bar.update()
                 targets = torch.reshape(targets, (-1,))#.cuda()
                 if use_cuda:
