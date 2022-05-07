@@ -28,7 +28,7 @@ def main():
     os.mkdir(save)
     np.save(open(os.path.join(save[:-1], "grouping_config.npy"), "wb"), groups)
     save += args.arch
-    os.mkdir(save)
+    os.makedirs(save, exist_ok=True)
     files = [f for f in glob.glob(args.resume + args.arch+"/*.pth", recursive=False)]
     process_list = [None for _ in range(args.num_gpus)]
     if args.dataset in ['cifar10', 'cifar100']:

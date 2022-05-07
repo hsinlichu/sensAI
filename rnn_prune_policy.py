@@ -48,9 +48,9 @@ class DiffRecord:
         hx = output_hc[0]
         cx = output_hc[1]
 
-        if self.time_step>0:
-            diff_hx = hx-self.last_hx
-            diff_cx = cx-self.last_cx
+        if self.time_step > 0:
+            diff_hx = hx - self.last_hx
+            diff_cx = cx - self.last_cx
             # diff_hx = (hx-self.last_hx)/self.last_hx
             # diff_cx = (cx-self.last_cx)/self.last_cx
             apoz_score_hx = apoz_scoring(diff_hx)
@@ -63,10 +63,10 @@ class DiffRecord:
                 self.avg_hx_by_timestep.append(avg_score_hx)
                 self.avg_cx_by_timestep.append(avg_score_cx)
             else:
-                self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
-                self.apoz_cx_by_timestep[self.time_step-1]+=apoz_score_cx
-                self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
-                self.avg_cx_by_timestep[self.time_step-1]+=avg_score_cx
+                self.apoz_hx_by_timestep[self.time_step - 1] += apoz_score_hx
+                self.apoz_cx_by_timestep[self.time_step - 1] += apoz_score_cx
+                self.avg_hx_by_timestep[self.time_step - 1] += avg_score_hx
+                self.avg_cx_by_timestep[self.time_step - 1] += avg_score_cx
         self.last_hx = hx
         self.last_cx = cx    
         self.time_step += 1
@@ -99,28 +99,27 @@ class DiffRecord:
 
     def showActivation(self):
         print(">>>>>>>>>>>Activation<<<<<<<<<<<<")
-        print("apoz_hx_by_timestep.size = "+str(len(self.apoz_hx_by_timestep)))
+        print("apoz_hx_by_timestep.size = " + str(len(self.apoz_hx_by_timestep)))
         print(self.apoz_hx_by_timestep)
-        print("apoz_cx_by_timestep.size = "+str(len(self.apoz_cx_by_timestep)))
+        print("apoz_cx_by_timestep.size = " + str(len(self.apoz_cx_by_timestep)))
         print(self.apoz_cx_by_timestep)
-        print("avg_hx_by_timestep.size = "+str(len(self.avg_hx_by_timestep)))
+        print("avg_hx_by_timestep.size = " + str(len(self.avg_hx_by_timestep)))
         print(self.avg_hx_by_timestep)
-        print("avg_cx_by_timestep.size = "+str(len(self.avg_cx_by_timestep)))
+        print("avg_cx_by_timestep.size = " + str(len(self.avg_cx_by_timestep)))
         print(self.avg_cx_by_timestep)
-        # print("avg_scores_by_layer.size = "+str(len(self.avg_scores_by_layer)))
+        # print("avg_scores_by_layer.size = " + str(len(self.avg_scores_by_layer)))
 
     def generate_pruned_candidates(self):
         num_timestep = len(self.apoz_hx_by_timestep)
-        thresholds = [60] * num_timestep
-        avg_thresholds = [0.05] * num_timestep
-        self.showActivation()
+        thresholds = [55] * num_timestep
+        avg_thresholds = [0.20] * num_timestep
 
         candidates_by_timestep = []
         for time_idx in range(num_timestep):
             apoz_score = self.apoz_hx_by_timestep[time_idx]
             avg_score = self.avg_hx_by_timestep[time_idx]
-            if apoz_score>thresholds[time_idx] and avg_score<avg_thresholds[time_idx]:
-                candidates_by_timestep.append(time_idx+1)
+            if apoz_score > thresholds[time_idx] and avg_score < avg_thresholds[time_idx]:
+                candidates_by_timestep.append(time_idx + 1)
         print("Total pruned candidates: "+ str(len(candidates_by_timestep)))
         return candidates_by_timestep
 

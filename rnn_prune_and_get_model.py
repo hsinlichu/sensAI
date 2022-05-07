@@ -226,12 +226,14 @@ def main():
         elif args.dataset == 'cifar100':
             num_classes = 100
         
+        print(groups, file_names)
         processes = []
         # for each class
         for i, (group_indices, file_name) in enumerate(zip(groups, file_names)):
             # load pruning candidates
             with open(file_name, 'rb') as f:
                 candidates = pickle.load(f)
+            print(candidates)
             # load checkpoints
             model = load_model.load_pretrain_model(
                 args.arch, args.dataset, args.resume, num_classes, use_cuda)
