@@ -1,3 +1,4 @@
+import logging
 import argparse
 import pickle
 
@@ -19,6 +20,9 @@ from even_k_means import kmeans_lloyd
 import models.cifar as cifar_models
 from models.cifar.rnn import lstm_cell_level
 from models.text.rnn import RNN
+from pathlib import Path
+from datetime import datetime
+logger = logging.getLogger()
 
 
 
@@ -44,6 +48,7 @@ parser.add_argument('--lr', '--learning-rate', default=0.05, type=float,
                     metavar='LR', help='initial learning rate')  
 parser.add_argument('--print-freq', '-p', default=20, type=int,
                     metavar='N', help='print frequency (default: 20)')
+parser.add_argument('--comment', type=str, default="test")
 
 # Miscs
 parser.add_argument('--seed', type=int, default=42, help='manual seed')
@@ -58,8 +63,25 @@ if use_cuda:
 max_epoch = 500
 
 
+logger.setLevel(logging.INFO)
+logFormatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+comment = "{}_{}".format(str(datetime.now().strftime(r'%m%d_%H%M%S')), args.comment)
+resultDirPath = Path("log") / comment
+resultDirPath.mkdir(parents=True, exist_ok=True)
+
+fileHandler = logging.FileHandler(resultDirPath / "info.log")
+fileHandler.setFormatter(logFormatter)
+logger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+logger.addHandler(consoleHandler)
+
+
 
 def main():
+    global BATCH_SIZE
     print('==> Preparing dataset %s' % args.dataset)
     best_prec1 = 0
     img_width = 28
@@ -71,11 +93,6 @@ def main():
             dataset_loader = datasets.CIFAR100
         img_width=32*3
 
-        pretrained_model_path = "pretrained/"
-        save_dir = pretrained_model_path+args.dataset
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        save_dir = save_dir+'/'
 
         train_dataset = dataset_loader(
             root='data/',
@@ -128,21 +145,23 @@ def main():
             train(train_loader, model, criterion, optimizer, epoch)
 
             # evaluate on validation set
-            prec1 = validate(val_loader, model, criterion)
+            loss, prec1 = validate(val_loader, model, criterion, epoch)
 
             # remember best prec@1 and save checkpoint
             is_best = prec1 > best_prec1
             if is_best:
+                filename = resultDirPath / "best_checkpoint.pth.tar"
                 best_prec1 = max(prec1, best_prec1)
                 save_checkpoint({
                     'epoch': epoch + 1,
                     'state_dict': model.state_dict(),
                     'best_prec1': best_prec1,
-                }, is_best, filename=os.path.join(save_dir, 'checkpoint_{}.pth'.format(args.arch)))
+                }, is_best, filename=filename)
+                logger.info("Current Best(loss: {:.4f}, acc: {:.2f}) Save to: {}".format(loss, prec1, filename))
     elif args.dataset == 'nameLan':
         # load dataset
-        trainset = TextDataset('data/nameLan/names/',isTest=False)
-        testset = TextDataset('data/nameLan/names/',isTest=True)
+        trainset = TextDataset('data/nameLan/names/', isTest=False)
+        testset = TextDataset('data/nameLan/names/', isTest=True)
         BATCH_SIZE = 1
         train_loader = torch.utils.data.DataLoader(trainset,batch_size=BATCH_SIZE,shuffle=False,num_workers=2)
         val_loader = torch.utils.data.DataLoader(testset,batch_size=BATCH_SIZE,shuffle=False,num_workers=2)
@@ -238,7 +257,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    trange = tqdm(enumerate(train_loader), total=len(train_loader), desc="Train|Epoch {}".format(epoch))
+    for i, (input, target) in trange:
 
         # measure data loading time
         data_time.update(time.time() - end)
@@ -266,6 +286,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         batch_time.update(time.time() - end)
         end = time.time()
 
+        trange.set_postfix(losses=losses.avg, top1=top1.avg)
+        '''
         if i % args.print_freq == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -274,9 +296,11 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                       epoch, i, len(train_loader), batch_time=batch_time,
                       data_time=data_time, loss=losses, top1=top1))
+        '''
+    logger.info('Train | loss: {:.4f} | accuracy {:.2f}'.format(losses.avg, top1.avg))
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, epoch):
     """
     Run evaluation
     """
@@ -288,7 +312,8 @@ def validate(val_loader, model, criterion):
     model.eval()
 
     end = time.time()
-    for i, (input, target) in enumerate(val_loader):
+    trange = tqdm(enumerate(val_loader), total=len(val_loader), desc="Valid|Epoch {}".format(epoch))
+    for i, (input, target) in trange:
         input = input.cuda()
         target = target.cuda()
 
@@ -309,6 +334,8 @@ def validate(val_loader, model, criterion):
         batch_time.update(time.time() - end)
         end = time.time()
 
+        trange.set_postfix(losses=losses.avg, top1=top1.avg)
+        '''
         if i % args.print_freq == 0:
             print('Test: [{0}/{1}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -316,11 +343,9 @@ def validate(val_loader, model, criterion):
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                       i, len(val_loader), batch_time=batch_time, loss=losses,
                       top1=top1))
-
-    print(' * Prec@1 {top1.avg:.3f}'
-          .format(top1=top1))
-
-    return top1.avg
+        '''
+    logger.info('Valid | loss: {:.4f} | accuracy {:.2f}'.format(losses.avg, top1.avg))
+    return losses.avg, top1.avg
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     """
