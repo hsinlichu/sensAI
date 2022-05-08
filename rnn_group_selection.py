@@ -11,6 +11,7 @@ import torchvision.datasets as datasets
 import numpy as np
 import subprocess as sp
 import os
+os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 from even_k_means import kmeans_lloyd
 from models.text.rnn import RNN
