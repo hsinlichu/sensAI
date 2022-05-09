@@ -58,19 +58,34 @@ python3 evaluate.py \
 要复现的化，首先建一个叫data的folder，然后到这个链接下载压缩包（https://download.pytorch.org/tutorial/data.zip
 
 之后把 data.zip解压到这个data folder下面，并将解压出来的文件夹重命名为nameLan
+Step 1: pretrain
 
 命令行里输入“python pretrain.py -d nameLan -a rnn”，就可以用这个nameLan数据集train RNN了
 
-Step 1: train完之后，输入以下命令可以group selection:
+Step 2: train完之后，输入以下命令可以group selection:
 ```
-python3 rnn_group_selection.py \
-        --arch rnn\
-        --resume pretrained/nameLan/checkpoint_rnn.pth \
-        --dataset nameLan \
-        --ngroups 2 \
-        --gpu_num 1
+python3 rnn_group_selection.py -a RNN --resume pretrained/nameLan/checkpoint_rnn.pth -d nameLan --ngroups 2 
 ```
-
-
+Steps 3: prune models:
+```
+python3 rnn_prune_and_get_model.py -a 'RNN' --resume pretrained/nameLan/checkpoint_rnn.pth -d nameLan -c prune_candidate_logs/ -s pruned_models
+```
+Step 4: retraining
+```
+python3 retrain_grouped_model.py \
+        -a RNN \
+        -d nameLan  \
+        --resume pruned_models/ \
+        --train_batch 1 \
+        --epochs 25 \
+```
+step 5:  evaluate
+```
+python3 evaluate.py \
+        -a RNN \
+        -d nameLan  \
+        --retrained_dir pruned_models_retrained/ \
+        --test-batch 1
+```
 
 
