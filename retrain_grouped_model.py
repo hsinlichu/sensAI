@@ -64,6 +64,25 @@ def main():
                             ' --checkpoint %s' % save +\
                             ' --gpu %s' % (i % args.num_gpus)
             process_list[i % args.num_gpus]  = sp.Popen(exec_cmd, shell=True)
+
+    elif args.dataset == 'nameLan':
+        for i, file in enumerate(files):
+            if process_list[i % args.num_gpus]:
+                process_list[i % args.num_gpus].wait()
+            exec_cmd = 'python3 cifar_group.py' +\
+                            ' --arch %s' % args.arch +\
+                            ' --resume %s' % file +\
+                            ' --schedule 40 60' +\
+                            ' --gamma 0.1' +\
+                            ' --epochs %d' % args.epochs +\
+                            ' --checkpoint %s' % save +\
+                            ' --train-batch %d' % args.train_batch +\
+                            ' --test-batch %d' % 1 +\
+                            ' --dataset %s' % args.dataset +\
+                            ' --grouping_dir %s' % args.resume +\
+                            ' --pruned' +\
+                            ' --gpu_id %d' % (i % args.num_gpus)
+            process_list[i % args.num_gpus]  = sp.Popen(exec_cmd, shell=True)
         
 if __name__ == '__main__':
     main()

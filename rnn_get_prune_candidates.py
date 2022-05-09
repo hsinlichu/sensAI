@@ -90,13 +90,12 @@ def main():
                 inputs = inputs.cuda()
                 
             recorder.record_batch(inputs)
-    # candidates_by_layer = recorder.generate_pruned_candidates()
 
     recorder.showActivation()
-
-    # with open(f"prune_candidate_logs/group_{args.group_number}_apoz_layer_thresholds.npy", "wb") as f:
-    #     pickle.dump(candidates_by_layer, f)
-    # print(candidates_by_layer)
+    candidates_by_timestep = recorder.generate_pruned_candidates()
+    with open(f"prune_candidate_logs/group_{args.group_number}_apoz_layer_thresholds.npy", "wb") as f:
+        pickle.dump(candidates_by_timestep, f)
+    print(candidates_by_timestep)
 
 
 if __name__ == '__main__':

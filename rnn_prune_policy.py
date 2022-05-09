@@ -145,8 +145,8 @@ class DiffRecord:
 
     def generate_pruned_candidates(self):
         num_timestep = len(self.apoz_hx_by_timestep)
-        thresholds = [60] * num_timestep
-        avg_thresholds = [0.05] * num_timestep
+        thresholds = [12] * num_timestep
+        avg_thresholds = [0.3] * num_timestep
         self.showActivation()
 
         candidates_by_timestep = []

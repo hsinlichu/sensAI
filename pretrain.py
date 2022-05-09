@@ -195,7 +195,7 @@ def train_rnn(model, trainloader, criterion, optimizer,epoch):
         line_tensor, category_tensor = batch
         target = torch.reshape(category_tensor, (-1,)).cuda()
         optimizer.zero_grad()
-        output, hidden = model(line_tensor.cuda())
+        output = model(line_tensor.cuda())
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()

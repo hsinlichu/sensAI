@@ -17,6 +17,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import models.cifar as models
 from datasets import cifar
+from datasets import nameLan
 import tqdm
 
 from utils import Logger, AverageMeter, accuracy, accuracy_binary, mkdir_p, savefig
@@ -24,7 +25,7 @@ from utils import Logger, AverageMeter, accuracy, accuracy_binary, mkdir_p, save
 import re
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
-                     and callable(models.__dict__[name]))
+                     and callable(models.__dict__[name])) + ['RNN']
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10/100 Training')
 # Datasets
@@ -95,10 +96,10 @@ args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
 
 # Validate dataset
-assert args.dataset == 'cifar10' or args.dataset == 'cifar100', 'Dataset can only be cifar10 or cifar100.'
+assert args.dataset == 'cifar10' or args.dataset == 'cifar100' or args.dataset == 'nameLan', 'Dataset can only be cifar10 or cifar100.'
 
 # Use CUDA, specific GPU
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+# os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 use_cuda = torch.cuda.is_available()
 
 # Random seed
@@ -138,6 +139,9 @@ def main():
     elif args.dataset == 'cifar100':
         trainset = cifar.CIFAR100TrainingSetWrapper(class_indices, True)
         testset = cifar.CIFAR100TestingSetWrapper(class_indices, True)
+    elif args.dataset == 'nameLan':
+        trainset = nameLan.nameLanTrainingSetWrapper(class_indices, True)
+        testset = nameLan.nameLanTestingSetWrapper(class_indices, True)
     else:
         raise NotImplementedError(f"There's no support for '{args.dataset}' dataset.")
 
@@ -205,7 +209,7 @@ def main():
                           momentum=args.momentum, weight_decay=args.weight_decay)
 
     # Initialize training log
-    title = 'cifar-10-' + args.arch
+    title = args.dataset + '-' + args.arch
     if args.resume and not args.pruned:
         # Load checkpoint.
         print('==> Resuming from checkpoint..')

@@ -27,6 +27,9 @@ from prune_utils.layer_prune import (
 from models.cifar.resnet import Bottleneck
 import torchvision.models as imagenet_models
 
+import string
+N_LETTERS = len(string.ascii_letters + " .,;'-")
+
 parser = argparse.ArgumentParser(description='VGG with mask layer on cifar10')
 parser.add_argument('-d', '--dataset', required=True, type=str)
 parser.add_argument('-c', '--prune-candidates', default="./prune_candidate_logs/",
@@ -142,6 +145,11 @@ def prune_lstm_cell_level(model, candidates, group_indices):
     prune_output_linear_layer_(model.out, group_indices, use_bce=args.bce)
     print("model.out.out_features: "+str(model.out.out_features))
 
+def prune_rnn(model, candidates, group_indices):
+    model.setPruneTimeSteps(candidates)
+    prune_output_linear_layer_(model.i2o, group_indices, use_bce=args.bce)
+    print("model.out.out_features: "+str(model.i2o.out_features))
+
 def filename_to_index(filename):
         filename = filename[6+len(args.prune_candidates):]
         return int(filename[:filename.index('_')])
@@ -164,6 +172,10 @@ def prune_cifar_worker(proc_ind, i, new_model, candidates, group_indices, arch, 
         prune_shufflenetv2(new_model, candidates, group_indices)
     elif args.arch.startswith('lstm'):
     	prune_lstm_cell_level(new_model, candidates, group_indices)
+    	print("Group: "+str(group_indices)+" | prune_timestep:")
+    	print(new_model.prune_timestep)
+    elif args.arch.startswith('RNN'):
+    	prune_rnn(new_model, candidates, group_indices)
     	print("Group: "+str(group_indices)+" | prune_timestep:")
     	print(new_model.prune_timestep)
     else:
@@ -220,11 +232,14 @@ def main():
     if len(groups[0]) == 1:
         args.bce = True
     print(f'==> Preparing dataset {args.dataset}')
-    if args.dataset in ['cifar10', 'cifar100']:
+    if args.dataset in ['cifar10', 'cifar100', 'nameLan']:
         if args.dataset == 'cifar10':
             num_classes = 10
         elif args.dataset == 'cifar100':
             num_classes = 100
+        elif args.dataset == 'nameLan':
+            num_classes = 18  
+            # need to modify if num_classes changes
         
         processes = []
         # for each class
@@ -234,7 +249,7 @@ def main():
                 candidates = pickle.load(f)
             # load checkpoints
             model = load_model.load_pretrain_model(
-                args.arch, args.dataset, args.resume, num_classes, use_cuda)
+                args.arch, args.dataset, args.resume, num_classes, use_cuda, N_LETTERS if args.dataset == 'nameLan' else None)
             new_model = copy.deepcopy(model)
             p = mp.spawn(prune_cifar_worker, args=(i, new_model, candidates, group_indices, args.arch, model_save_directory), join=False)
             processes.append(p)

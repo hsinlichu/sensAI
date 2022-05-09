@@ -24,6 +24,8 @@ import torchvision.models as models
 from imagenet_evaluate_grouped import main_worker
 import torch.multiprocessing as mp
 
+from datasets import nameLan
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
@@ -116,11 +118,14 @@ def main():
         dataset_loader = datasets.CIFAR10
     elif args.dataset == 'cifar100':
         dataset_loader = datasets.CIFAR100
+    elif args.dataset == 'nameLan':
+        dataset = TextDataset('data/nameLan/names/',isTest=True)
+
     else:
         raise NotImplementedError
 
-    testloader = data.DataLoader(
-        dataset_loader(
+    if args.dataset.startswith('cifar'):
+        dataset = dataset_loader(
             root='./data',
             download=False,
             train=False,
@@ -128,7 +133,10 @@ def main():
                 transforms.ToTensor(),
                 transforms.Normalize(
                     (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ])),
+            ]))
+
+    testloader = data.DataLoader(
+        dataset ,
         batch_size = args.test_batch,
         shuffle = True,
         num_workers = args.workers)
@@ -190,6 +198,9 @@ def test_list(testloader, model, criterion, use_cuda):
         confusion_matrix = np.zeros((10, 10))
     elif args.dataset == 'cifar100':
         confusion_matrix = np.zeros((100, 100))
+    elif args.dataset == 'nameLan':
+        num_classes = 18
+        confusion_matrix = np.zeros((num_classes, num_classes))
     else:
         raise NotImplementedError
 
