@@ -10,13 +10,19 @@ class DataSetWrapper(object):
         self.name = name
         self.dataset = dataset
         self.class_group = class_group
+        print("class_group:")
+        print(self.class_group)
         self.negative_samples = negative_samples
         self.targets = np.asarray(self.dataset.targets)
+        print("targets:")
+        print(np.unique(self.targets))
+
         # This is the bool mask for all classes in the given group.
         positive_mask = np.zeros_like(self.targets, dtype=bool)
         for class_index in class_group:
             positive_mask |= (self.targets == class_index)
         positive_class_indices = np.where(positive_mask)[0]
+        # print("positive_class_indices len = "+str(len(positive_class_indices)))
         if negative_samples:
             # For N negative samples, P positive samples, we need to append
             # (k * N - P) positive samples.
@@ -41,7 +47,9 @@ class DataSetWrapper(object):
     def __getitem__(self, i):
         index = self.mapping[i]
         data, label = self.dataset[index]
-        if label in self.class_group:
+
+        if label.item() in self.class_group:
+            # print(label)
             label = list(self.class_group).index(label) + 1
         else:
             label = 0
