@@ -5,6 +5,7 @@ import time
 import random
 import warnings
 
+
 from tqdm import tqdm
 import torch
 from torch import nn
@@ -23,16 +24,21 @@ from compute_flops import print_model_param_flops
 import torchvision.models as models
 from imagenet_evaluate_grouped import main_worker
 import torch.multiprocessing as mp
+import load_model
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
-model_names += ["resnet110", "resnet164", "mobilenetv2", "shufflenetv2", "lstm_cell_level"]
+model_names += ["resnet110", "resnet164", "mobilenetv2", "shufflenetv2", "lstm_cell_level", "gru_cell_level"]
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10/100/ImageNet Testing')
 # Checkpoints
 parser.add_argument('--retrained_dir', type=str, metavar='PATH',
                     help='path to the directory of pruned models (default: none)')
+# Checkpoints
+parser.add_argument('--resume', type=str, metavar='PATH',
+                    help='path to the directory of pretrained models (default: none)')
+
 # Datasets
 parser.add_argument('-d', '--dataset', required=True, type=str)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
@@ -119,22 +125,7 @@ def main():
     else:
         raise NotImplementedError
 
-    # testloader = data.DataLoader(
-    #     dataset_loader(
-    #         root='data',
-    #         download=False,
-    #         train=False,
-    #         transform=transforms.Compose([
-    #             transforms.ToTensor(),
-    #             transforms.Normalize(
-    #                 (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    #         ])),
-    #     batch_size = args.test_batch,
-    #     shuffle = True,
-    #     num_workers = args.workers)
-
-    testloader = data.DataLoader(
-        dataset_loader(
+    trainDataset = dataset_loader(
             root='data',
             download=False,
             train=True,
@@ -142,18 +133,46 @@ def main():
                 transforms.ToTensor(),
                 transforms.Normalize(
                     (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ])),
+            ]))
+    testDataset = dataset_loader(
+            root='data',
+            download=False,
+            train=False,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            ]))
+    trainloader = data.DataLoader(
+        trainDataset,
+        batch_size = args.test_batch,
+        shuffle = True,
+        num_workers = args.workers)
+
+    testloader = data.DataLoader(
+        testDataset,
         batch_size = args.test_batch,
         shuffle = True,
         num_workers = args.workers)
 
     cudnn.benchmark = True
     criterion = nn.CrossEntropyLoss()
-    model = load_pruned_models(args.retrained_dir+'/'+args.arch+'/')
 
-    if len(model.group_info) == 10 and args.dataset == 'cifar10':
-        args.bce = True
+    if args.pretrained:
+        model = load_model.load_pretrain_model(args.arch, 'cifar', args.resume, len(trainDataset.classes), use_cuda)
+        if use_cuda:
+            model = model.cuda()
+    else:
+        model = load_pruned_models(args.retrained_dir+'/'+args.arch+'/')
+    print(model)
 
+    if not args.pretrained:
+        if len(model.group_info) == 10 and args.dataset == 'cifar10':
+            args.bce = True
+
+    print("On training set:")
+    train_acc = test_list(trainloader, model, criterion, use_cuda)
+    print("On testing set:")
     test_acc = test_list(testloader, model, criterion, use_cuda)
 
 def imagenet_evaluate():
@@ -191,14 +210,13 @@ def imagenet_evaluate():
 def test_list(testloader, model, criterion, use_cuda):
     batch_time = AverageMeter()
     data_time = AverageMeter()
+    model_times = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
 
-    if use_cuda:
-        model.cuda()
     model.eval()
-    end = time.time()
+    start = end = time.time()
 
     if args.dataset == 'cifar10':
         confusion_matrix = np.zeros((10, 10))
@@ -214,9 +232,11 @@ def test_list(testloader, model, criterion, use_cuda):
         # measure data loading time
         data_time.update(time.time() - end)
         if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
+            targets = targets.cuda()
+        if args.pretrained:
+            inputs = inputs.cuda()
         with torch.no_grad():
-            outputs = model(inputs)
+            outputs, model_time = model(inputs, output_time=True)
             loss = criterion(outputs, targets)
             for output, target in zip(outputs, targets):
                 gt = target.item()
@@ -227,19 +247,20 @@ def test_list(testloader, model, criterion, use_cuda):
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
             top5.update(prec5.item(), inputs.size(0))
+            model_times.update(model_time, inputs.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
 
         # plot progress
-        bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+        bar.set_description('({batch}/{size}) Data: {data:.4f}s | Batch: {bt:.4f}s | Model: {bt:.4f}s | Total: {total:.4f}s | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
             batch=batch_idx + 1,
             size=len(testloader),
             data=data_time.avg,
             bt=batch_time.avg,
-            total='N/A' or bar.elapsed_td,
-            eta='N/A' or bar.eta_td,
+            model=model_times.avg,
+            total=time.time() - start,
             loss=losses.avg,
             top1=top1.avg,
             top5=top5.avg,
@@ -248,6 +269,7 @@ def test_list(testloader, model, criterion, use_cuda):
 
     np.set_printoptions(precision=3, linewidth=96)
 
+    '''
     print("\n===== Full Confusion Matrix ==================================\n")
     if confusion_matrix.shape[0] < 20:
         print(confusion_matrix)
@@ -277,6 +299,7 @@ def test_list(testloader, model, criterion, use_cuda):
         inter_group_matrix = confusion_matrix[group, :][:, group]
         inter_group_matrix /= inter_group_matrix.sum(axis=-1)[:, np.newaxis]
         print(inter_group_matrix)
+    '''
     return (losses.avg, top1.avg)
 
 class GroupedModel(nn.Module):
@@ -290,18 +313,24 @@ class GroupedModel(nn.Module):
             self.permutation_indices = self.permutation_indices.cuda()
         self.model_list = nn.ModuleList(model_list)
 
-    def forward(self, inputs):
+    def forward(self, inputs, output_time=False):
         output_list = []
         if args.bce:
             for model_idx, model in enumerate(self.model_list):
+                inputs = inputs.cuda(model_idx)
                 output = model(inputs)[:, 0]
                 output_list.append(output)
             output_list = torch.softmax(torch.stack(output_list, dim=1).squeeze(), dim=1)
         else:
+            model_start = time.time()
             for model_idx, model in enumerate(self.model_list): 
+                inputs = inputs.cuda(model_idx)
                 output = torch.softmax(model(inputs), dim=1)[:, 1:]
-                output_list.append(output)
+                output_list.append(output.cuda(0))
+            model_time = time.time() - model_start
             output_list = torch.cat(output_list, 1)
+        if output_time:
+            return torch.mm(output_list, self.permutation_indices), model_time
         return torch.mm(output_list, self.permutation_indices)
 
     def print_statistics(self):
@@ -326,7 +355,7 @@ def load_pruned_models(model_dir):
     if not model_dir.endswith('/'):
         model_dir += '/'
     file_names = [f for f in glob.glob(model_dir + "*.pth", recursive=False)]
-    model_list = [torch.load(file_name, map_location=lambda storage, loc: storage.cuda(0)) for file_name in file_names]
+    model_list = [torch.load(file_name, map_location=lambda storage, loc: storage.cuda(i)) for i, file_name in enumerate(file_names)]
     groups = np.load(open(group_dir + "grouping_config.npy", "rb"))
     group_info = []
     for file in file_names:
@@ -335,7 +364,7 @@ def load_pruned_models(model_dir):
         class_indices = groups[group_id]
         group_info.append(class_indices.tolist()[0])
     model = GroupedModel(model_list, group_info)
-    # model.print_statistics()
+    #model.print_statistics()
     return model
 
 

@@ -45,44 +45,65 @@ class DiffRecord:
 
 
     def parse_activation(self, output_hc):
-        hx = output_hc[0]
-        cx = output_hc[1]
+        if self.arch == 'lstm_cell_level':
+            hx = output_hc[0]
+            cx = output_hc[1]
 
-        if self.time_step>0:
-            diff_hx = hx-self.last_hx
-            diff_cx = cx-self.last_cx
-            # diff_hx = (hx-self.last_hx)/self.last_hx
-            # diff_cx = (cx-self.last_cx)/self.last_cx
-            apoz_score_hx = apoz_scoring(diff_hx)
-            apoz_score_cx = apoz_scoring(diff_cx)
-            avg_score_hx = avg_scoring(diff_hx)
-            avg_score_cx = avg_scoring(diff_cx)
-            if self.num_batches == 0:
-                self.apoz_hx_by_timestep.append(apoz_score_hx)
-                self.apoz_cx_by_timestep.append(apoz_score_cx)
-                self.avg_hx_by_timestep.append(avg_score_hx)
-                self.avg_cx_by_timestep.append(avg_score_cx)
-            else:
-                self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
-                self.apoz_cx_by_timestep[self.time_step-1]+=apoz_score_cx
-                self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
-                self.avg_cx_by_timestep[self.time_step-1]+=avg_score_cx
-        self.last_hx = hx
-        self.last_cx = cx    
+            if self.time_step > 0:
+                diff_hx = hx - self.last_hx
+                diff_cx = cx - self.last_cx
+                apoz_score_hx = apoz_scoring(diff_hx)
+                apoz_score_cx = apoz_scoring(diff_cx)
+                avg_score_hx = avg_scoring(diff_hx)
+                avg_score_cx = avg_scoring(diff_cx)
+                if self.num_batches == 0:
+                    self.apoz_hx_by_timestep.append(apoz_score_hx)
+                    self.apoz_cx_by_timestep.append(apoz_score_cx)
+                    self.avg_hx_by_timestep.append(avg_score_hx)
+                    self.avg_cx_by_timestep.append(avg_score_cx)
+                else:
+                    self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
+                    self.apoz_cx_by_timestep[self.time_step-1]+=apoz_score_cx
+                    self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
+                    self.avg_cx_by_timestep[self.time_step-1]+=avg_score_cx
+            self.last_hx = hx
+            self.last_cx = cx    
+        elif self.arch == 'gru_cell_level':
+            hx = output_hc
+
+            if self.time_step > 0:
+                diff_hx = hx - self.last_hx
+                apoz_score_hx = apoz_scoring(diff_hx)
+                avg_score_hx = avg_scoring(diff_hx)
+                if self.num_batches == 0:
+                    self.apoz_hx_by_timestep.append(apoz_score_hx)
+                    self.avg_hx_by_timestep.append(avg_score_hx)
+                else:
+                    self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
+                    self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
+            self.last_hx = hx
+
         self.time_step += 1
 
     def __enter__(self):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        for score in self.apoz_hx_by_timestep:
-            score /= self.num_batches
-        for score in self.apoz_cx_by_timestep:
-            score /= self.num_batches
-        for score in self.avg_hx_by_timestep:
-            score /= self.num_batches
-        for score in self.avg_cx_by_timestep:
-            score /= self.num_batches
+        if self.arch == 'lstm_cell_level':
+            for score in self.apoz_hx_by_timestep:
+                score /= self.num_batches
+            for score in self.apoz_cx_by_timestep:
+                score /= self.num_batches
+            for score in self.avg_hx_by_timestep:
+                score /= self.num_batches
+            for score in self.avg_cx_by_timestep:
+                score /= self.num_batches
+        elif self.arch == 'gru_cell_level':
+            for score in self.apoz_hx_by_timestep:
+                score /= self.num_batches
+            for score in self.avg_hx_by_timestep:
+                score /= self.num_batches
+
 
     def record_batch(self, *args, **kwargs):
         # reset layer index
@@ -93,40 +114,74 @@ class DiffRecord:
         self.num_batches += 1
 
     def _hook(self, module, input, output):
-        """Apply a hook to LSTMCell layer"""
+        """Apply a hook to LSTMCell and GRUCell layer"""
         if module.__class__.__name__ == 'LSTMCell':
             self.parse_activation(output)
+        elif module.__class__.__name__ == 'GRUCell':
+            self.parse_activation(output)
+
+            
 
     def showActivation(self):
-        print(">>>>>>>>>>>Activation<<<<<<<<<<<<")
-        print("apoz_hx_by_timestep.size = "+str(len(self.apoz_hx_by_timestep)))
-        print(np.mean(self.apoz_hx_by_timestep))
-        print("apoz_cx_by_timestep.size = "+str(len(self.apoz_cx_by_timestep)))
-        print(np.mean(self.apoz_cx_by_timestep))
-        print("avg_hx_by_timestep.size = "+str(len(self.avg_hx_by_timestep)))
-        print(np.mean(self.avg_hx_by_timestep))
-        print("avg_cx_by_timestep.size = "+str(len(self.avg_cx_by_timestep)))
-        print(np.mean(self.avg_cx_by_timestep))
-        # print("avg_scores_by_layer.size = "+str(len(self.avg_scores_by_layer)))
+        if self.arch == 'lstm_cell_level':
+            print(">>>>>>>>>>>Activation<<<<<<<<<<<<")
+            print("apoz_hx_by_timestep.size = "+str(len(self.apoz_hx_by_timestep)))
+            print(np.mean(self.apoz_hx_by_timestep))
+            print("apoz_cx_by_timestep.size = "+str(len(self.apoz_cx_by_timestep)))
+            print(np.mean(self.apoz_cx_by_timestep))
+            print("avg_hx_by_timestep.size = "+str(len(self.avg_hx_by_timestep)))
+            print(np.mean(self.avg_hx_by_timestep))
+            print("avg_cx_by_timestep.size = "+str(len(self.avg_cx_by_timestep)))
+            print(np.mean(self.avg_cx_by_timestep))
+            # print("avg_scores_by_layer.size = "+str(len(self.avg_scores_by_layer)))
+        elif self.arch == 'gru_cell_level':
+            print(">>>>>>>>>>>Activation<<<<<<<<<<<<")
+            print("apoz_hx_by_timestep.size = " + str(len(self.apoz_hx_by_timestep)))
+            print(self.apoz_hx_by_timestep)
+            print(np.mean(self.apoz_hx_by_timestep))
+            print(np.std(self.apoz_hx_by_timestep))
+            print("avg_hx_by_timestep.size = " + str(len(self.avg_hx_by_timestep)))
+            print(self.avg_hx_by_timestep)
+            print(np.mean(self.avg_hx_by_timestep))
+            print(np.std(self.avg_hx_by_timestep))
+            # print("avg_scores_by_layer.size = "+str(len(self.avg_scores_by_layer)))
+
 
     def generate_pruned_candidates(self):
-        num_timestep = len(self.apoz_hx_by_timestep)
-        apoz_thresholds_hx = [np.mean(self.apoz_hx_by_timestep)] * num_timestep
-        avg_thresholds_hx = [np.mean(self.avg_hx_by_timestep)] * num_timestep
-        apoz_thresholds_cx = [np.mean(self.apoz_cx_by_timestep)] * num_timestep
-        avg_thresholds_cx = [np.mean(self.avg_cx_by_timestep)] * num_timestep
-        self.showActivation()
+        if self.arch == 'lstm_cell_level':
+            num_timestep = len(self.apoz_hx_by_timestep)
+            apoz_thresholds_hx = [np.mean(self.apoz_hx_by_timestep)] * num_timestep
+            avg_thresholds_hx = [np.mean(self.avg_hx_by_timestep)] * num_timestep
+            apoz_thresholds_cx = [np.mean(self.apoz_cx_by_timestep)] * num_timestep
+            avg_thresholds_cx = [np.mean(self.avg_cx_by_timestep)] * num_timestep
+            self.showActivation()
 
-        candidates_by_timestep = []
-        for time_idx in range(num_timestep):
-            apoz_score_hx = self.apoz_hx_by_timestep[time_idx]
-            avg_score_hx = self.avg_hx_by_timestep[time_idx]
-            apoz_score_cx = self.apoz_cx_by_timestep[time_idx]
-            avg_score_cx = self.avg_cx_by_timestep[time_idx]
-            if apoz_score_hx>apoz_thresholds_hx[time_idx] and avg_score_hx<avg_thresholds_hx[time_idx]:
-            	if apoz_score_cx>apoz_thresholds_cx[time_idx] and avg_score_cx<avg_thresholds_cx[time_idx]:
-                	candidates_by_timestep.append(time_idx+1)
-        print("Total pruned candidates: "+ str(len(candidates_by_timestep)))
+            candidates_by_timestep = []
+            for time_idx in range(num_timestep):
+                apoz_score_hx = self.apoz_hx_by_timestep[time_idx]
+                avg_score_hx = self.avg_hx_by_timestep[time_idx]
+                apoz_score_cx = self.apoz_cx_by_timestep[time_idx]
+                avg_score_cx = self.avg_cx_by_timestep[time_idx]
+                if apoz_score_hx>apoz_thresholds_hx[time_idx] and avg_score_hx<avg_thresholds_hx[time_idx]:
+                    if apoz_score_cx>apoz_thresholds_cx[time_idx] and avg_score_cx<avg_thresholds_cx[time_idx]:
+                            candidates_by_timestep.append(time_idx+1)
+            print("Total pruned candidates: "+ str(len(candidates_by_timestep)))
+        elif self.arch == 'gru_cell_level':
+            num_timestep = len(self.apoz_hx_by_timestep)
+            apoz_threshold = np.mean(self.apoz_hx_by_timestep) + 0.4 * np.std(self.apoz_hx_by_timestep)
+            avg_threshold = np.mean(self.avg_hx_by_timestep) + 0.4 * np.std(self.avg_hx_by_timestep)
+            apoz_thresholds_hx = [apoz_threshold] * num_timestep
+            avg_thresholds_hx = [avg_threshold] * num_timestep
+            self.showActivation()
+
+            candidates_by_timestep = []
+            for time_idx in range(num_timestep):
+                apoz_score_hx = self.apoz_hx_by_timestep[time_idx]
+                avg_score_hx = self.avg_hx_by_timestep[time_idx]
+                if apoz_score_hx > apoz_thresholds_hx[time_idx] and avg_score_hx < avg_thresholds_hx[time_idx]:
+                    candidates_by_timestep.append(time_idx + 1)
+            print("Total pruned candidates: " + str(len(candidates_by_timestep)))
+
         return candidates_by_timestep
 
 

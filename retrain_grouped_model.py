@@ -22,12 +22,15 @@ def main():
     save = args.resume[:-1] +'_retrained/'
     groups = np.load(open(args.resume + "grouping_config.npy", "rb"))
     resultExist = os.path.exists(save)
-    if resultExist:
+    if os.path.exists(save):
         rm_cmd = 'rm -rf ' + save
         sp.Popen(rm_cmd, shell=True)
     os.mkdir(save)
     np.save(open(os.path.join(save[:-1], "grouping_config.npy"), "wb"), groups)
     save += args.arch
+    if os.path.exists(save):
+        rm_cmd = 'rm -rf ' + save
+        sp.Popen(rm_cmd, shell=True)
     os.mkdir(save)
     files = [f for f in glob.glob(args.resume + args.arch+"/*.pth", recursive=False)]
     process_list = [None for _ in range(args.num_gpus)]
@@ -47,6 +50,7 @@ def main():
                             ' --grouping_dir %s' % args.resume +\
                             ' --pruned' +\
                             ' --gpu_id %d' % (i % args.num_gpus)
+            print(exec_cmd)
             process_list[i % args.num_gpus]  = sp.Popen(exec_cmd, shell=True)
     elif args.dataset in 'imagenet':
         for i, file in enumerate(files):

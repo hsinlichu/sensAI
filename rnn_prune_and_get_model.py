@@ -166,6 +166,11 @@ def prune_cifar_worker(proc_ind, i, new_model, candidates, group_indices, arch, 
     	prune_lstm_cell_level(new_model, candidates, group_indices)
     	print("Group: "+str(group_indices)+" | prune_timestep:")
     	print(new_model.valid_timestep)
+    elif args.arch.startswith('gru'):
+    	prune_lstm_cell_level(new_model, candidates, group_indices)
+    	print("Group: "+str(group_indices)+" | prune_timestep:")
+    	print(new_model.valid_timestep)
+
     else:
         raise NotImplementedError
 

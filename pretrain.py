@@ -66,7 +66,7 @@ max_epoch = 500
 logger.setLevel(logging.INFO)
 logFormatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-comment = "{}_{}".format(str(datetime.now().strftime(r'%m%d_%H%M%S')), args.comment)
+comment = "{}_{}".format(str(datetime.now().strftime(r'%m%d_%H%M%S')), args.arch + '_' + args.comment)
 resultDirPath = Path("log") / comment
 resultDirPath.mkdir(parents=True, exist_ok=True)
 
@@ -135,6 +135,7 @@ def main():
                                 momentum=args.lr,
                                 weight_decay=5e-4)
         
+        logger.info(model)
         model = model.cuda()
 
 

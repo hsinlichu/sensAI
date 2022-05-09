@@ -271,7 +271,7 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
-    end = time.time()
+    start = end = time.time()
 
     with tqdm.tqdm(total=len(trainloader)) as bar:
         for batch_idx, (inputs, targets) in enumerate(trainloader):
@@ -317,13 +317,12 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda):
             end = time.time()
 
             # plot progress
-            bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+            bar.set_description('Train ({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
                 batch=batch_idx + 1,
                 size=len(trainloader),
                 data=data_time.avg,
                 bt=batch_time.avg,
-                total='N/A' or bar.elapsed_td,
-                eta='N/A' or bar.eta_td,
+                total=time.time() - start,
                 loss=losses.avg,
                 top1=top1.avg,
                 top5=top5.avg,
@@ -343,7 +342,7 @@ def test(testloader, model, criterion, epoch, use_cuda):
     # switch to evaluate mode
     model.eval()
 
-    end = time.time()
+    start = end = time.time()
     with tqdm.tqdm(total=len(testloader)) as bar:
         for batch_idx, (inputs, targets) in enumerate(testloader):
             bar.update()
@@ -382,13 +381,12 @@ def test(testloader, model, criterion, epoch, use_cuda):
             end = time.time()
 
             # plot progress
-            bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+            bar.set_description('Test ({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
                 batch=batch_idx + 1,
                 size=len(testloader),
                 data=data_time.avg,
                 bt=batch_time.avg,
-                total='N/A' or bar.elapsed_td,
-                eta='N/A' or bar.eta_td,
+                total=time.time() - start,
                 loss=losses.avg,
                 top1=top1.avg,
                 top5=top5.avg,

@@ -1,5 +1,6 @@
+import time
 from torch import nn
-from torch.nn.modules.rnn import LSTMCell
+from torch.nn.modules.rnn import LSTMCell, GRUCell
 import torch
 
 class lstm(nn.Module):
@@ -73,6 +74,50 @@ class lstm_cell_level(nn.Module):
         # for x in candidates:
         #     self.prune_timestep.add(x)
         # self.prune_timestep = candidates
+        tmp = []
+        for i in range(32):
+            if not i in candidates:
+                tmp.append(i)
+        self.valid_timestep = torch.tensor(tmp)
+
+class gru_cell_level(nn.Module):
+    def __init__(self, input_size=32*3, hidden_size=512, num_classes=10):
+        super(gru_cell_level, self).__init__()
+        self.hidden_size = hidden_size
+        self.gru_cell = GRUCell(input_size, hidden_size)
+        self.out = nn.Linear(hidden_size, num_classes)
+        self.valid_timestep = torch.arange(32)
+
+    def forward(self, inputs, features_only=False, output_time=False):
+        model_start = time.time()
+        # flatten
+        inputs = inputs.permute(0, 2, 3, 1)
+        inputs = inputs.contiguous().view(-1, 32, 32 * 3)
+        inputs = inputs.permute(1,0,2)
+
+
+        hx = torch.randn(inputs.shape[1], self.hidden_size).to(inputs.device) # (batch, hidden_size)
+        if inputs.is_cuda:
+            inputs = inputs.index_select(0, self.valid_timestep.to(inputs.device))
+        else:
+            inputs = inputs.index_select(0, self.valid_timestep)
+        for i in range(inputs.shape[0]):
+            hx = self.gru_cell(inputs[i], hx)
+
+        if features_only:
+            return hx
+        # get the final step as output
+        output = self.out(hx)
+        if output_time:
+            return output, time.time() - model_start
+        
+        return output
+
+    def setPruneTimeSteps(self, candidates):
+        # for x in candidates:
+        #     self.prune_timestep.add(x)
+        # self.prune_timestep = candidates
+        print(candidates)
         tmp = []
         for i in range(32):
             if not i in candidates:
