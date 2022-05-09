@@ -37,9 +37,9 @@ parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('--train-batch', default=128, type=int, metavar='N',
+parser.add_argument('--train-batch', default=1, type=int, metavar='N',
                     help='train batchsize')
-parser.add_argument('--test-batch', default=100, type=int, metavar='N',
+parser.add_argument('--test-batch', default=1, type=int, metavar='N',
                     help='test batchsize')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate')
@@ -144,7 +144,7 @@ def main():
         testset = nameLan.nameLanTestingSetWrapper(class_indices, True)
     else:
         raise NotImplementedError(f"There's no support for '{args.dataset}' dataset.")
-
+    # return
     trainloader = torch.utils.data.DataLoader(
             trainset,
             batch_size=args.train_batch,
@@ -226,6 +226,8 @@ def main():
         logger = Logger(model_prefix + '_log.txt', title=title)
         logger.set_names(['Learning Rate', 'Train Loss',
                           'Valid Loss', 'Train Acc.', 'Valid Acc.'])
+    # print("trainloader size = "+str(len(trainloader)))
+    # print("testloader size = "+str(len(testloader)))
 
     # Evaluation only
     if args.evaluate:
@@ -235,6 +237,8 @@ def main():
         print(' Test Loss:  %.8f, Test Acc:  %.2f' % (test_loss, test_acc))
         return
 
+    
+    
     # Train and validation
     for epoch in range(start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
@@ -282,6 +286,8 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda):
             bar.update()
             # measure data loading time
             data_time.update(time.time() - end)
+            # print("target:"+str(targets))
+            # break
 
             if use_cuda:
                 inputs, targets = inputs.cuda(), targets.cuda()
@@ -346,6 +352,7 @@ def test(testloader, model, criterion, epoch, use_cuda):
 
     # switch to evaluate mode
     model.eval()
+    # labels = []
 
     end = time.time()
     with tqdm.tqdm(total=len(testloader)) as bar:
@@ -353,6 +360,9 @@ def test(testloader, model, criterion, epoch, use_cuda):
             bar.update()
             # measure data loading time
             data_time.update(time.time() - end)
+            # labels.append(targets)
+            # print("target:"+str(targets))
+            # break
 
             if use_cuda:
                 inputs, targets = inputs.cuda(), targets.cuda()
@@ -397,7 +407,7 @@ def test(testloader, model, criterion, epoch, use_cuda):
                 top1=top1.avg,
                 top5=top5.avg,
             ))
-
+    # print(labels)
     return (losses.avg, top1.avg)
 
 

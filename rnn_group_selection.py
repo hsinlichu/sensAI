@@ -15,6 +15,8 @@ import os
 from even_k_means import kmeans_lloyd
 from models.text.rnn import RNN
 
+os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
 parser = argparse.ArgumentParser(
     description='PyTorch CIFAR10/100/Imagenet Generate Group Info')
 # Datasets

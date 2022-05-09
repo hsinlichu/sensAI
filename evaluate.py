@@ -29,7 +29,7 @@ from datasets import nameLan
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
-model_names += ["resnet110", "resnet164", "mobilenetv2", "shufflenetv2"]
+model_names += ["resnet110", "resnet164", "mobilenetv2", "shufflenetv2", "RNN"]
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10/100/ImageNet Testing')
 # Checkpoints
@@ -94,7 +94,7 @@ parser.add_argument('--seed', type=int, default=42, help='manual seed')
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
 # Validate dataset
-assert args.dataset == 'cifar10' or args.dataset == 'cifar100' or args.dataset == 'imagenet', 'Dataset can only be cifar10, cifar100 or imagenet.'
+assert args.dataset == 'cifar10' or args.dataset == 'cifar100' or args.dataset == 'imagenet' or args.dataset == 'nameLan', 'Dataset can only be cifar10, cifar100 or imagenet.'
 
 # Use CUDA
 use_cuda = torch.cuda.is_available()
@@ -119,7 +119,7 @@ def main():
     elif args.dataset == 'cifar100':
         dataset_loader = datasets.CIFAR100
     elif args.dataset == 'nameLan':
-        dataset = TextDataset('data/nameLan/names/',isTest=True)
+        dataset = nameLan.TextDataset('data/nameLan/names/',isTest=False)
 
     else:
         raise NotImplementedError
@@ -230,7 +230,7 @@ def test_list(testloader, model, criterion, use_cuda):
         end = time.time()
 
         # plot progress
-        bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+        bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} |loss: {los:.4f}| top1: {top1: .4f} | top5: {top5: .4f}'.format(
             batch=batch_idx + 1,
             size=len(testloader),
             data=data_time.avg,
@@ -332,7 +332,7 @@ def load_pruned_models(model_dir):
         class_indices = groups[group_id]
         group_info.append(class_indices.tolist()[0])
     model = GroupedModel(model_list, group_info)
-    model.print_statistics()
+    # model.print_statistics()
     return model
 
 

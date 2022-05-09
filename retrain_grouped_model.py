@@ -81,8 +81,9 @@ def main():
                             ' --dataset %s' % args.dataset +\
                             ' --grouping_dir %s' % args.resume +\
                             ' --pruned' +\
-                            ' --gpu_id %d' % (i % args.num_gpus)
+                            ' --gpu_id %d' % (i % args.num_gpus)                            # ' --evaluate'+\
             process_list[i % args.num_gpus]  = sp.Popen(exec_cmd, shell=True)
+            # break
         
 if __name__ == '__main__':
     main()
