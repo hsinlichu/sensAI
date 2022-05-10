@@ -180,7 +180,7 @@ class DiffRecord:
                 avg_thresholds = [0.3] * num_timestep
             elif self.arch == 'lstm_cell_level':
                 thresholds = [25] * num_timestep
-                avg_thresholds = [0.2] * num_timestep
+                avg_thresholds = [0.23] * num_timestep
         self.showActivation()
 
         candidates_by_timestep = []

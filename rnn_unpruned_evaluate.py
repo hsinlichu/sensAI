@@ -5,6 +5,7 @@ import time
 import random
 import warnings
 
+import load_model
 from tqdm import tqdm
 import torch
 from torch import nn
@@ -25,16 +26,19 @@ from imagenet_evaluate_grouped import main_worker
 import torch.multiprocessing as mp
 
 from datasets import nameLan
+import models.cifar as cifar_models
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
-model_names += ["resnet110", "resnet164", "mobilenetv2", "shufflenetv2", "RNN"]
+model_names += ["resnet110", "resnet164", "mobilenetv2", "shufflenetv2", "lstm_cell_level"]
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10/100/ImageNet Testing')
 # Checkpoints
 parser.add_argument('--retrained_dir', type=str, metavar='PATH',
                     help='path to the directory of pruned models (default: none)')
+parser.add_argument('--resume', default='', type=str, metavar='PATH',
+                    help='path to latest checkpoint (default: none)')
 # Datasets
 parser.add_argument('-d', '--dataset', required=True, type=str)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
@@ -44,7 +48,7 @@ parser.add_argument('--test-batch', default=128, type=int, metavar='N',
 parser.add_argument('--data', metavar='DIR', required=False,
                     help='path to imagenet dataset')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
-                    # choices=model_names,
+                    choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: resnet18)')
@@ -94,7 +98,7 @@ parser.add_argument('--seed', type=int, default=42, help='manual seed')
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
 # Validate dataset
-assert args.dataset == 'cifar10' or args.dataset == 'cifar100' or args.dataset == 'imagenet' or args.dataset == 'nameLan', 'Dataset can only be cifar10, cifar100 or imagenet.'
+assert args.dataset == 'cifar10' or args.dataset == 'cifar100' or args.dataset == 'nameLan' or args.dataset == 'imagenet', 'Dataset can only be cifar10, cifar100 or imagenet.'
 
 # Use CUDA
 use_cuda = torch.cuda.is_available()
@@ -120,33 +124,53 @@ def main():
         dataset_loader = datasets.CIFAR100
     elif args.dataset == 'nameLan':
         dataset = nameLan.TextDataset('data/nameLan/names/',isTest=True)
-
     else:
         raise NotImplementedError
 
     if args.dataset.startswith('cifar'):
         dataset = dataset_loader(
-            root='./data',
+            root='data',
             download=False,
-            train=False,
+            train=True,
             transform=transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize(
                     (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]))
-
+    # dataset = dataset_loader(
+    #         root='data',
+    #         download=False,
+    #         train=False,
+    #         transform=transforms.Compose([
+    #             transforms.ToTensor(),
+    #             transforms.Normalize(
+    #                 (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    #         ]))
     testloader = data.DataLoader(
-        dataset ,
+        dataset,
         batch_size = args.test_batch,
         shuffle = True,
         num_workers = args.workers)
 
     cudnn.benchmark = True
     criterion = nn.CrossEntropyLoss()
-    model = load_pruned_models(args.retrained_dir+'/'+args.arch+'/')
+    # model = load_pruned_models(args.retrained_dir+'/'+args.arch+'/')
+    if args.dataset.startswith('cifar'):
+        model = load_model.load_pretrain_model(
+            args.arch, 'cifar', args.resume, len(dataset.classes), use_cuda)
+    elif args.dataset == 'nameLan':
+        if args.arch == 'RNN':
+            model = RNN(input_size=dataset.n_letters,output_size=dataset.n_categories).cuda()
+        elif args.arch.startswith('lstm'):
+            model = cifar_models.__dict__[args.arch](input_size=dataset.n_letters, num_classes=dataset.n_categories, dataset='nameLan').cuda()
 
-    if len(model.group_info) == 10 and args.dataset == 'cifar10':
-        args.bce = True
+        if args.resume!="":
+            if os.path.exists(args.resume):
+                checkpoint = torch.load(args.resume)
+                model.load_state_dict(checkpoint['state_dict'])
+
+    # if len(model.group_info) == 10 and args.dataset == 'cifar10':
+    #     args.bce = True
 
     test_acc = test_list(testloader, model, criterion, use_cuda)
 
@@ -199,8 +223,7 @@ def test_list(testloader, model, criterion, use_cuda):
     elif args.dataset == 'cifar100':
         confusion_matrix = np.zeros((100, 100))
     elif args.dataset == 'nameLan':
-        num_classes = 18
-        confusion_matrix = np.zeros((num_classes, num_classes))
+        confusion_matrix = np.zeros((18,18))
     else:
         raise NotImplementedError
 
@@ -232,7 +255,7 @@ def test_list(testloader, model, criterion, use_cuda):
         end = time.time()
 
         # plot progress
-        bar.set_description('({batch}/{size}) Data: {data:f}s | Batch: {bt:f}s | Total: {total:} | ETA: {eta:} |loss: {loss:.4f}| top1: {top1: .4f} | top5: {top5: .4f}'.format(
+        bar.set_description('({batch}/{size}) Data: {data:f}s | Batch: {bt:f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
             batch=batch_idx + 1,
             size=len(testloader),
             data=data_time.avg,
@@ -256,29 +279,28 @@ def test_list(testloader, model, criterion, use_cuda):
         print("Warning: The original confusion matrix is too big to fit into the screen. "
               "Skip printing the matrix.")
 
-    if all([len(group) > 1 for group in model.group_info]):
-        print("\n===== Inter-group Confusion Matrix ===========================\n")
-        print(f"Group info: {[group for group in model.group_info]}")
-        n_groups = len(model.group_info)
-        group_confusion_matrix = np.zeros((n_groups, n_groups))
-        for i in range(n_groups):
-            for j in range(n_groups):
-                cols = model.group_info[i]
-                rows = model.group_info[j]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[0]]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[1]]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[0]]
-                group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[1]]
-        group_confusion_matrix /= group_confusion_matrix.sum(axis=-1)[:, np.newaxis]
-        print(group_confusion_matrix)
+    # if all([len(group) > 1 for group in model.group_info]):
+    #     print("\n===== Inter-group Confusion Matrix ===========================\n")
+    #     print(f"Group info: {[group for group in model.group_info]}")
+    #     n_groups = len(model.group_info)
+    #     group_confusion_matrix = np.zeros((n_groups, n_groups))
+    #     for i in range(n_groups):
+    #         for j in range(n_groups):
+    #             cols = model.group_info[i]
+    #             rows = model.group_info[j]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[0]]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[0], rows[1]]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[0]]
+    #             group_confusion_matrix[i, j] += confusion_matrix[cols[1], rows[1]]
+    #     group_confusion_matrix /= group_confusion_matrix.sum(axis=-1)[:, np.newaxis]
+    #     print(group_confusion_matrix)
 
-    print("\n===== In-group Confusion Matrix ==============================\n")
-    for group in model.group_info:
-        print(f"group {group}")
-        inter_group_matrix = confusion_matrix[group, :][:, group]
-        inter_group_matrix /= inter_group_matrix.sum(axis=-1)[:, np.newaxis]
-        print(inter_group_matrix)
-
+    # print("\n===== In-group Confusion Matrix ==============================\n")
+    # for group in model.group_info:
+    #     print(f"group {group}")
+    #     inter_group_matrix = confusion_matrix[group, :][:, group]
+    #     inter_group_matrix /= inter_group_matrix.sum(axis=-1)[:, np.newaxis]
+    #     print(inter_group_matrix)
     print('total time = ', total_time)
     return (losses.avg, top1.avg)
 
@@ -338,7 +360,7 @@ def load_pruned_models(model_dir):
         class_indices = groups[group_id]
         group_info.append(class_indices.tolist()[0])
     model = GroupedModel(model_list, group_info)
-    # model.print_statistics()
+    model.print_statistics()
     return model
 
 
@@ -348,5 +370,3 @@ def filename_to_index(filename):
 
 if __name__ == '__main__':
     main()
-
-
