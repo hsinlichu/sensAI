@@ -88,4 +88,14 @@ python3 evaluate.py \
         --test-batch 1
 ```
 
+step 6: evaluate original pretrained model
+```
+python3 rnn_unpruned_evaluate.py \
+        -a RNN \
+        --dataset nameLan  \
+        --resume pretrained/nameLan/checkpoint_rnn.pth \
+        --test-batch 1
+```
+                
+
 
