@@ -204,10 +204,19 @@ def main():
     if args.bce:
         criterion = nn.BCEWithLogitsLoss()
     else:
+        # print("CrossEntropy here")
         criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=args.lr,
-                          momentum=args.momentum, weight_decay=args.weight_decay)
 
+    tmp_lr = 0.02
+    if len(trainloader)>100000:
+        tmp_lr/=10
+    
+    optimizer = torch.optim.SGD(model.parameters(),tmp_lr,
+                                momentum=args.lr,
+                                weight_decay=args.weight_decay)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr,
+    #                       momentum=args.momentum, weight_decay=args.weight_decay)
+    # return
     # Initialize training log
     title = args.dataset + '-' + args.arch
     if args.resume and not args.pruned:
