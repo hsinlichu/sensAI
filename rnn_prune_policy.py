@@ -27,7 +27,7 @@ def avg_scoring(activation):
 
 
 class DiffRecord:
-    def __init__(self, model, arch):
+    def __init__(self, model, arch, dataset='cifar'):
         self.apoz_hx_by_timestep = []
         self.avg_hx_by_timestep = []
         self.apoz_cx_by_timestep = []
@@ -45,31 +45,53 @@ class DiffRecord:
 
         # for nameLan
         self.num_batch_by_timestep = []
+        self.dataset = dataset
 
     def parse_activation(self, output_hc):
         if self.arch == 'lstm_cell_level':
             hx = output_hc[0]
             cx = output_hc[1]
 
-            if self.time_step>0:
-                diff_hx = hx-self.last_hx
-                diff_cx = cx-self.last_cx
-                # diff_hx = (hx-self.last_hx)/self.last_hx
-                # diff_cx = (cx-self.last_cx)/self.last_cx
-                apoz_score_hx = apoz_scoring(diff_hx)
-                apoz_score_cx = apoz_scoring(diff_cx)
-                avg_score_hx = avg_scoring(diff_hx)
-                avg_score_cx = avg_scoring(diff_cx)
-                if self.num_batches == 0:
-                    self.apoz_hx_by_timestep.append(apoz_score_hx)
-                    self.apoz_cx_by_timestep.append(apoz_score_cx)
-                    self.avg_hx_by_timestep.append(avg_score_hx)
-                    self.avg_cx_by_timestep.append(avg_score_cx)
-                else:
-                    self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
-                    self.apoz_cx_by_timestep[self.time_step-1]+=apoz_score_cx
-                    self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
-                    self.avg_cx_by_timestep[self.time_step-1]+=avg_score_cx
+            if self.dataset.startswith('cifar'):
+                if self.time_step>0:
+                    diff_hx = hx-self.last_hx
+                    diff_cx = cx-self.last_cx
+                    # diff_hx = (hx-self.last_hx)/self.last_hx
+                    # diff_cx = (cx-self.last_cx)/self.last_cx
+                    apoz_score_hx = apoz_scoring(diff_hx)
+                    apoz_score_cx = apoz_scoring(diff_cx)
+                    avg_score_hx = avg_scoring(diff_hx)
+                    avg_score_cx = avg_scoring(diff_cx)
+                    if self.num_batches == 0:
+                        self.apoz_hx_by_timestep.append(apoz_score_hx)
+                        self.apoz_cx_by_timestep.append(apoz_score_cx)
+                        self.avg_hx_by_timestep.append(avg_score_hx)
+                        self.avg_cx_by_timestep.append(avg_score_cx)
+                    else:
+                        self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
+                        self.apoz_cx_by_timestep[self.time_step-1]+=apoz_score_cx
+                        self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
+                        self.avg_cx_by_timestep[self.time_step-1]+=avg_score_cx
+            elif self.dataset == 'nameLan':
+                if self.time_step>0:
+                    diff_hx = hx-self.last_hx
+                    diff_cx = cx-self.last_cx
+                    apoz_score_hx = apoz_scoring(diff_hx)
+                    apoz_score_cx = apoz_scoring(diff_cx)
+                    avg_score_hx = avg_scoring(diff_hx)
+                    avg_score_cx = avg_scoring(diff_cx)
+                    if self.time_step-1 >= len(self.apoz_hx_by_timestep):
+                        self.apoz_hx_by_timestep.append(apoz_score_hx)
+                        self.avg_hx_by_timestep.append(avg_score_hx)
+                        self.apoz_cx_by_timestep.append(apoz_score_cx)
+                        self.avg_cx_by_timestep.append(avg_score_cx)
+                        self.num_batch_by_timestep.append(1)
+                    else:
+                        self.apoz_hx_by_timestep[self.time_step-1]+=apoz_score_hx
+                        self.avg_hx_by_timestep[self.time_step-1]+=avg_score_hx
+                        self.apoz_cx_by_timestep[self.time_step-1]+=apoz_score_cx
+                        self.avg_cx_by_timestep[self.time_step-1]+=avg_score_cx
+                        self.num_batch_by_timestep[self.time_step-1] += 1
             self.last_hx = hx
             self.last_cx = cx    
             self.time_step += 1
@@ -99,12 +121,19 @@ class DiffRecord:
 
     def __exit__(self, exception_type, exception_value, traceback):
         print(self.num_batch_by_timestep)
-        if self.arch == 'RNN':
-            for time in range(len(self.apoz_hx_by_timestep)):
-                self.apoz_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
-                self.avg_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+        if self.dataset == 'nameLan':
+            if self.arch == 'RNN':
+                for time in range(len(self.apoz_hx_by_timestep)):
+                    self.apoz_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+                    self.avg_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+            elif self.arch == 'lstm_cell_level':
+                for time in range(len(self.apoz_hx_by_timestep)):
+                    self.apoz_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+                    self.avg_hx_by_timestep[time] /= self.num_batch_by_timestep[time]
+                    self.apoz_cx_by_timestep[time] /= self.num_batch_by_timestep[time]
+                    self.avg_cx_by_timestep[time] /= self.num_batch_by_timestep[time]
 
-        elif self.arch == 'lstm_cell_level':
+        elif self.dataset.startswith('cifar'):
             for score in self.apoz_hx_by_timestep:
                 score /= self.num_batches
             for score in self.apoz_cx_by_timestep:
@@ -145,8 +174,13 @@ class DiffRecord:
 
     def generate_pruned_candidates(self):
         num_timestep = len(self.apoz_hx_by_timestep)
-        thresholds = [12] * num_timestep
-        avg_thresholds = [0.3] * num_timestep
+        if self.dataset == 'nameLan':
+            if self.arch == 'RNN':
+                thresholds = [12] * num_timestep
+                avg_thresholds = [0.3] * num_timestep
+            elif self.arch == 'lstm_cell_level':
+                thresholds = [25] * num_timestep
+                avg_thresholds = [0.2] * num_timestep
         self.showActivation()
 
         candidates_by_timestep = []

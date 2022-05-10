@@ -15,6 +15,9 @@ import os
 from even_k_means import kmeans_lloyd
 from models.text.rnn import RNN
 
+import models.cifar as cifar_models
+
+
 os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 parser = argparse.ArgumentParser(
@@ -142,6 +145,8 @@ def main():
         # create model
         if args.arch == 'RNN':
             model = RNN(input_size=dataset.n_letters,output_size=dataset.n_categories).cuda()
+        elif args.arch.startswith('lstm'):
+            model = cifar_models.__dict__[args.arch](input_size=dataset.n_letters, num_classes=dataset.n_categories, dataset='nameLan').cuda()
         criterion = nn.CrossEntropyLoss().cuda()
         optimizer = torch.optim.SGD(model.parameters(), 0.005)
 

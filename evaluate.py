@@ -44,7 +44,7 @@ parser.add_argument('--test-batch', default=128, type=int, metavar='N',
 parser.add_argument('--data', metavar='DIR', required=False,
                     help='path to imagenet dataset')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
-                    choices=model_names,
+                    # choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: resnet18)')
@@ -214,14 +214,14 @@ def test_list(testloader, model, criterion, use_cuda):
             inputs, targets = inputs.cuda(), targets.cuda()
         with torch.no_grad():
             outputs = model(inputs)
-            loss = criterion(outputs, targets)
+            # loss = criterion(outputs, targets)
             for output, target in zip(outputs, targets):
                 gt = target.item()
                 dt = np.argmax(output.cpu().numpy())
                 confusion_matrix[gt, dt] += 1
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs, targets, topk = (1, 5))
-            losses.update(loss.item(), inputs.size(0))
+            # losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
             top5.update(prec5.item(), inputs.size(0))
 
@@ -230,14 +230,14 @@ def test_list(testloader, model, criterion, use_cuda):
         end = time.time()
 
         # plot progress
-        bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} |loss: {los:.4f}| top1: {top1: .4f} | top5: {top5: .4f}'.format(
+        bar.set_description('({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} |loss: {loss:.4f}| top1: {top1: .4f} | top5: {top5: .4f}'.format(
             batch=batch_idx + 1,
             size=len(testloader),
             data=data_time.avg,
             bt=batch_time.avg,
             total='N/A' or bar.elapsed_td,
             eta='N/A' or bar.eta_td,
-            loss=losses.avg,
+            loss=0,
             top1=top1.avg,
             top5=top5.avg,
         ))

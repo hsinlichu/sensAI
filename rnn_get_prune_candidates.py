@@ -81,7 +81,7 @@ def main():
     if use_cuda:
         model.cuda()
     print('\nMake a test run to generate activations. \n Using training set.\n')
-    with DiffRecord(model, args.arch) as recorder:
+    with DiffRecord(model, args.arch, args.dataset) as recorder:
         # collect pruning data
         #bar = tqdm(total=len(pruning_loader))
         for batch_idx, (inputs, _) in enumerate(pruning_loader):
@@ -91,7 +91,7 @@ def main():
                 
             recorder.record_batch(inputs)
 
-    recorder.showActivation()
+    # recorder.showActivation()
     candidates_by_timestep = recorder.generate_pruned_candidates()
     with open(f"prune_candidate_logs/group_{args.group_number}_apoz_layer_thresholds.npy", "wb") as f:
         pickle.dump(candidates_by_timestep, f)

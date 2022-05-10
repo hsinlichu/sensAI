@@ -34,18 +34,22 @@ class lstm(nn.Module):
         return r_out[:, -1, :]
 
 class lstm_cell_level(nn.Module):
-    def __init__(self, input_size=32*3, hidden_size=64, num_classes=10):
+    def __init__(self, input_size=32*3, hidden_size=64, num_classes=10, dataset='cifar'):
         super(lstm_cell_level, self).__init__()
         self.hidden_size = hidden_size
         self.lstm_cell = LSTMCell(input_size, hidden_size)
         self.out = nn.Linear(hidden_size, num_classes)
         self.prune_timestep = []
+        self.dataset = dataset
 
     def forward(self, inputs, features_only=False):
         # flatten
-        inputs = inputs.permute(0, 2, 3, 1)
-        inputs = inputs.contiguous().view(-1, 32, 32 * 3)
-        inputs = inputs.permute(1,0,2)
+        if self.dataset == 'cifar':
+            inputs = inputs.permute(0, 2, 3, 1)
+            inputs = inputs.contiguous().view(-1, 32, 32 * 3)
+            inputs = inputs.permute(1,0,2)
+        elif self.dataset == 'nameLan':
+            inputs = inputs.permute(1,0,2)
 
         hx = torch.randn(inputs.shape[1], self.hidden_size) # (batch, hidden_size)
         cx = torch.randn(inputs.shape[1], self.hidden_size)

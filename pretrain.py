@@ -149,7 +149,9 @@ def main():
         print("nameLan loaded!")
         # create model
         if args.arch == 'rnn':
-            model = RNN(input_size=trainset.n_letters,output_size=trainset.n_categories).cuda()
+            model = RNN(input_size=trainset.n_letters, output_size=trainset.n_categories).cuda()
+        elif args.arch.startswith('lstm'):
+            model = cifar_models.__dict__[args.arch](input_size=trainset.n_letters, num_classes=trainset.n_categories, dataset='nameLan').cuda()
         criterion = nn.CrossEntropyLoss().cuda()
         optimizer = torch.optim.SGD(model.parameters(), 0.005)
 
@@ -215,9 +217,9 @@ def validate_rnn(model, testloader):
     losses = AverageMeter()
     top1 = AverageMeter()
     for idx, batch in enumerate(testloader):
-        category_tensor, line_tensor = batch
+        line_tensor, category_tensor = batch
         with torch.no_grad():
-            output, hidden = model(line_tensor.cuda())
+            output = model(line_tensor.cuda())
 
         output = output.float()
         prec1 = accuracy(output.data.cpu(), category_tensor)[0]
