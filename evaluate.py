@@ -210,10 +210,14 @@ def imagenet_evaluate():
 def test_list(testloader, model, criterion, use_cuda):
     batch_time = AverageMeter()
     data_time = AverageMeter()
-    model_times = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+
+    moving_times = AverageMeter()
+    computation_times = AverageMeter()
+    addition_times = AverageMeter()
+
 
     model.eval()
     start = end = time.time()
@@ -233,10 +237,18 @@ def test_list(testloader, model, criterion, use_cuda):
         data_time.update(time.time() - end)
         if use_cuda:
             targets = targets.cuda()
-        if args.pretrained:
             inputs = inputs.cuda()
+
         with torch.no_grad():
-            outputs, model_time = model(inputs, output_time=True)
+            if args.pretrained:
+                outputs, computation_time = model(inputs, output_time=True)
+                computation_times.update(computation_time)
+            else:
+                outputs, (moving_time, computation_time, addition_time) = model(inputs, output_time=True)
+                moving_times.update(moving_time)
+                computation_times.update(computation_time)
+                addition_times.update(addition_time)
+
             loss = criterion(outputs, targets)
             for output, target in zip(outputs, targets):
                 gt = target.item()
@@ -247,19 +259,20 @@ def test_list(testloader, model, criterion, use_cuda):
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
             top5.update(prec5.item(), inputs.size(0))
-            model_times.update(model_time, inputs.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
 
         # plot progress
-        bar.set_description('({batch}/{size}) Data: {data:.4f}s | Batch: {bt:.4f}s | Model: {bt:.4f}s | Total: {total:.4f}s | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+        bar.set_description('({batch}/{size}) Data: {data:.4f} | Computation: {computation:.4f} | Moving: {moving:.4f} | Addition: {addition:.4f} | Batch: {batch_time:.4f} | Total: {total:.4f} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
             batch=batch_idx + 1,
             size=len(testloader),
-            data=data_time.avg,
-            bt=batch_time.avg,
-            model=model_times.avg,
+            data=data_time.sum,
+            batch_time=batch_time.sum,
+            computation=computation_times.sum,
+            moving=moving_times.sum,
+            addition=addition_times.sum,
             total=time.time() - start,
             loss=losses.avg,
             top1=top1.avg,
@@ -312,9 +325,17 @@ class GroupedModel(nn.Module):
         if use_cuda:
             self.permutation_indices = self.permutation_indices.cuda()
         self.model_list = nn.ModuleList(model_list)
+        for i, model in enumerate(model_list):
+            print(group_info[i])
+            print(model.valid_timestep)
+            print("Pruned {} timestamps".format(32 - len(model.valid_timestep)))
 
     def forward(self, inputs, output_time=False):
+        moving_time = 0
+        computation_time = 0
+        addition_time = 0
         output_list = []
+      
         if args.bce:
             for model_idx, model in enumerate(self.model_list):
                 inputs = inputs.cuda(model_idx)
@@ -322,16 +343,75 @@ class GroupedModel(nn.Module):
                 output_list.append(output)
             output_list = torch.softmax(torch.stack(output_list, dim=1).squeeze(), dim=1)
         else:
-            model_start = time.time()
+
+            '''
+            data = [inputs.clone().cuda(i) for i in range(len(self.model_list))]
             for model_idx, model in enumerate(self.model_list): 
+
+                moving_start = time.time()
                 inputs = inputs.cuda(model_idx)
-                output = torch.softmax(model(inputs), dim=1)[:, 1:]
-                output_list.append(output.cuda(0))
-            model_time = time.time() - model_start
+                moving_time += time.time() - moving_start
+
+                computation_start = time.time()
+                output = model(data[model_idx])
+                #output = model(inputs)
+                computation_time += time.time() - computation_start
+
+                addition_start = time.time()
+                output = torch.softmax(output, dim=1)[:, 1:]
+                addition_time += time.time() - addition_start
+
+                moving_start = time.time()
+                output = output.cuda(0)
+                moving_time += time.time() - moving_start
+
+                addition_start = time.time()
+                output_list.append(output)
+                addition_time += time.time() - addition_start
+                #break
+            '''
+            moving_start = time.time()
+            data = [inputs.clone().cuda(i) for i in range(len(self.model_list))]
+            #a0 = torch.zeros(inputs.size()).cuda(0)
+            #a1 = torch.zeros(inputs.size()).cuda(1)
+            moving_time += time.time() - moving_start
+
+            computation_start = time.time()
+            
+            #output0 = self.model_list[0](a0)
+            #output1 = self.model_list[1](a1)
+            output0 = self.model_list[0](data[0])
+            output1 = self.model_list[1](data[1])
+
+            #output = model(inputs)
+            computation_time += time.time() - computation_start
+
+            addition_start = time.time()
+            output0 = torch.softmax(output0, dim=1)[:, 1:]
+            output1 = torch.softmax(output1, dim=1)[:, 1:]
+            addition_time += time.time() - addition_start
+
+            moving_start = time.time()
+            output1 = output1.cuda(0)
+            moving_time += time.time() - moving_start
+
+            addition_start = time.time()
+            output_list.append(output0)
+            output_list.append(output1)
+            addition_time += time.time() - addition_start
+
+
+            addition_start = time.time()
             output_list = torch.cat(output_list, 1)
+            addition_time += time.time() - addition_start
+
+        addition_start = time.time()
+        final_output = torch.mm(output_list, self.permutation_indices)
+        addition_time += time.time() - addition_start
+        
         if output_time:
-            return torch.mm(output_list, self.permutation_indices), model_time
-        return torch.mm(output_list, self.permutation_indices)
+            return final_output, (moving_time, computation_time, addition_time)
+        return final_output
 
     def print_statistics(self):
         num_params = []
