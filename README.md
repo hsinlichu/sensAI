@@ -14,7 +14,7 @@ python pretrain.py -d nameLan -a lstm_cell_level
 step 2: group selection and get pruned candidates (ngroups=1 if you only want one group)
 ```
 python3 rnn_group_selection.py \
-        -alstm_cell_level \
+        -a lstm_cell_level \
         --resume pretrained/nameLan/checkpoint_lstm_cell_level.pth \
         -d nameLan \
         --ngroups 2 
