@@ -169,7 +169,7 @@ class DiffRecord:
         elif self.arch == 'gru_cell_level':
             num_timestep = len(self.apoz_hx_by_timestep)
             apoz_threshold = np.mean(self.apoz_hx_by_timestep) + 0.4 * np.std(self.apoz_hx_by_timestep)
-            avg_threshold = np.mean(self.avg_hx_by_timestep) + 0.4 * np.std(self.avg_hx_by_timestep)
+            avg_threshold = np.mean(self.avg_hx_by_timestep) - 0.4 * np.std(self.avg_hx_by_timestep)
             apoz_thresholds_hx = [apoz_threshold] * num_timestep
             avg_thresholds_hx = [avg_threshold] * num_timestep
             self.showActivation()

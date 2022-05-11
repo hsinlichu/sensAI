@@ -4,6 +4,8 @@ import shutil
 import time
 import random
 import warnings
+import threading
+
 
 
 from tqdm import tqdm
@@ -343,8 +345,39 @@ class GroupedModel(nn.Module):
                 output_list.append(output)
             output_list = torch.softmax(torch.stack(output_list, dim=1).squeeze(), dim=1)
         else:
+            lock = threading.Lock()
+            output_list = [None for i in range(len(self.model_list))]
+            #grad_enabled = torch.is_grad_enabled()
 
+            def _worker(i, module, input, device):
+                # torch.set_grad_enabled(grad_enabled)
+                with torch.no_grad():
+                    try:
+                        with torch.cuda.device(device):
+                            output = module(input)
+                        output = torch.softmax(output, dim=1)[:, 1:].cuda(0)
+                        with lock:
+                            output_list[i] = output
+                    except Exception as e:
+                        with lock:
+                            output_list[i] = e
+
+            moving_start = time.time()
+            data = [inputs.clone().cuda(i) for i in range(len(self.model_list))]
+            torch.cuda.synchronize()
+            moving_time += time.time() - moving_start
+
+            threads = [threading.Thread(target=_worker,
+                                        args=(i, model, data[i], i))
+                       for i, model in enumerate(self.model_list)]
+            start = time.time()
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            computation_time = time.time() - start
             '''
+
             data = [inputs.clone().cuda(i) for i in range(len(self.model_list))]
             for model_idx, model in enumerate(self.model_list): 
 
@@ -368,20 +401,20 @@ class GroupedModel(nn.Module):
                 addition_start = time.time()
                 output_list.append(output)
                 addition_time += time.time() - addition_start
-                #break
+            '''
             '''
             moving_start = time.time()
             data = [inputs.clone().cuda(i) for i in range(len(self.model_list))]
-            #a0 = torch.zeros(inputs.size()).cuda(0)
-            #a1 = torch.zeros(inputs.size()).cuda(1)
+            a0 = torch.zeros(inputs.size()).cuda(0)
+            a1 = torch.zeros(inputs.size()).cuda(1)
             moving_time += time.time() - moving_start
 
             computation_start = time.time()
             
-            #output0 = self.model_list[0](a0)
-            #output1 = self.model_list[1](a1)
-            output0 = self.model_list[0](data[0])
-            output1 = self.model_list[1](data[1])
+            output0 = self.model_list[0](a0)
+            output1 = self.model_list[1](a1)
+            #output0 = self.model_list[0](data[0])
+            #output1 = self.model_list[1](data[1])
 
             #output = model(inputs)
             computation_time += time.time() - computation_start
@@ -399,7 +432,7 @@ class GroupedModel(nn.Module):
             output_list.append(output0)
             output_list.append(output1)
             addition_time += time.time() - addition_start
-
+            '''
 
             addition_start = time.time()
             output_list = torch.cat(output_list, 1)

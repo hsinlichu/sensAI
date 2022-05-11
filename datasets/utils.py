@@ -22,16 +22,19 @@ class DataSetWrapper(object):
             k = len(class_group)
             P = len(positive_class_indices)
             N = len(self.targets) - P
-            assert N >= P, "there are already more positive classes"
-            ext_P = k * N - P
-            repeat_n = math.ceil(ext_P / P)
-            extented_indices = np.repeat(
-                positive_class_indices, repeat_n)[:ext_P]
-            # fuse and shuffle
-            all_indices = np.arange(len(self.targets))
-            fullset = np.concatenate([all_indices, extented_indices])
-            np.random.shuffle(fullset)
-            self.mapping = fullset
+            #assert N >= P, "there are already more positive classes"
+            if N < P:
+                self.mapping = positive_class_indices
+            else:
+                ext_P = k * N - P
+                repeat_n = math.ceil(ext_P / P)
+                extented_indices = np.repeat(
+                    positive_class_indices, repeat_n)[:ext_P]
+                # fuse and shuffle
+                all_indices = np.arange(len(self.targets))
+                fullset = np.concatenate([all_indices, extented_indices])
+                np.random.shuffle(fullset)
+                self.mapping = fullset
         else:
             self.mapping = positive_class_indices
 
