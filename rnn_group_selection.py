@@ -15,6 +15,7 @@ os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 from even_k_means import kmeans_lloyd
 from models.text.rnn import RNN
+from datasets.cifar import Cifar8
 
 parser = argparse.ArgumentParser(
     description='PyTorch CIFAR10/100/Imagenet Generate Group Info')
@@ -58,7 +59,8 @@ def main():
     # cifar10/100 group selection
     if args.dataset in ['cifar10', 'cifar100']:
         if args.dataset == 'cifar10':
-            dataset_loader = datasets.CIFAR10
+            #dataset_loader = datasets.CIFAR10
+            dataset_loader = Cifar8
         elif args.dataset == 'cifar100':
             dataset_loader = datasets.CIFAR100
 

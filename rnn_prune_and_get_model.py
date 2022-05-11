@@ -227,7 +227,7 @@ def main():
     print(f'==> Preparing dataset {args.dataset}')
     if args.dataset in ['cifar10', 'cifar100']:
         if args.dataset == 'cifar10':
-            num_classes = 10
+            num_classes = 8
         elif args.dataset == 'cifar100':
             num_classes = 100
         

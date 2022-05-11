@@ -3,6 +3,7 @@ import argparse
 import pickle
 
 from datasets.nameLan import TextDataset
+from datasets.cifar import Cifar8
 
 import torch
 from torch import nn
@@ -23,7 +24,6 @@ from models.text.rnn import RNN
 from pathlib import Path
 from datetime import datetime
 logger = logging.getLogger()
-
 
 
 BATCH_SIZE = 64
@@ -88,7 +88,8 @@ def main():
     # cifar10/100 group selection
     if args.dataset in ['cifar10', 'cifar100']:
         if args.dataset == 'cifar10':
-            dataset_loader = datasets.CIFAR10
+            #dataset_loader = datasets.CIFAR10
+            dataset_loader = Cifar8
         elif args.dataset == 'cifar100':
             dataset_loader = datasets.CIFAR100
         img_width=32*3

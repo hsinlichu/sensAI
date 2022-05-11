@@ -52,7 +52,7 @@ assert args.grouped
 def main():
     if args.dataset == 'cifar10':
         dataset = cifar.CIFAR10TrainingSetWrapper(args.grouped, False)
-        num_classes = 10
+        num_classes = 8
     elif args.dataset == 'cifar100':
         dataset = cifar.CIFAR100TrainingSetWrapper(args.grouped, False)
         num_classes = 100
