@@ -2,7 +2,7 @@
 
 The model is inside models/cifar/rnn.py 
 
-First create a folder called 'data/', and then download the zip from here: https://download.pytorch.org/tutorial/data.zip
+First create a folder called 'data/', and then download the zip from here: https://download.pytorch.org/tutorial/data.zip. \
 Unzip data.zip and rename it nameLan, and put it under the data/ folder.
 
 
